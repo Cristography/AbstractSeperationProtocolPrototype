@@ -1,0 +1,264 @@
+{
+  "version": "1.0.0",
+  "name": "AI Content Generation System",
+  "description": "Modular system for generating editable visual content from AI",
+  "components": {
+    "layouts": {
+      "intro": {
+        "id": "intro",
+        "name": "Introduction Slide",
+        "category": "presentation",
+        "slots": ["title", "subtitle", "background_image"],
+        "constraints": {
+          "title": { "maxChars": 50, "required": true },
+          "subtitle": { "maxChars": 100, "required": false }
+        },
+        "css": {
+          "default": {
+            "display": "flex",
+            "flexDirection": "column",
+            "justifyContent": "center",
+            "alignItems": "center",
+            "height": "100vh",
+            "padding": "40px",
+            "textAlign": "center"
+          }
+        },
+        "animations": ["fadeIn", "slideUp"],
+        "editableProperties": ["backgroundColor", "fontFamily", "textColor"]
+      },
+      "content": {
+        "id": "content",
+        "name": "Content Slide",
+        "category": "presentation",
+        "slots": ["heading", "body", "image", "footer"],
+        "constraints": {
+          "heading": { "maxChars": 60, "required": true },
+          "body": { "maxChars": 500, "required": true },
+          "image": { "maxWidth": 800, "aspectRatio": "16:9" }
+        },
+        "css": {
+          "default": {
+            "display": "grid",
+            "gridTemplateColumns": "1fr 1fr",
+            "gap": "30px",
+            "padding": "40px",
+            "height": "100vh"
+          }
+        },
+        "animations": ["fadeIn", "slideLeft"],
+        "editableProperties": ["backgroundColor", "columnGap", "fontSize"]
+      },
+      "carousel-card": {
+        "id": "carousel-card",
+        "name": "Carousel Card",
+        "category": "social-media",
+        "slots": ["headline", "content", "cta", "visual"],
+        "constraints": {
+          "headline": { "maxChars": 80, "required": true },
+          "content": { "maxChars": 200, "required": true },
+          "cta": { "maxChars": 30, "required": false }
+        },
+        "css": {
+          "default": {
+            "width": "1080px",
+            "height": "1080px",
+            "padding": "60px",
+            "display": "flex",
+            "flexDirection": "column"
+          }
+        },
+        "animations": ["zoomIn", "fadeIn"],
+        "editableProperties": ["backgroundColor", "borderRadius", "boxShadow"]
+      },
+      "resume-header": {
+        "id": "resume-header",
+        "name": "Resume Header",
+        "category": "resume",
+        "slots": ["name", "title", "contact", "photo"],
+        "constraints": {
+          "name": { "maxChars": 40, "required": true },
+          "title": { "maxChars": 50, "required": true },
+          "contact": { "maxChars": 100, "required": false }
+        },
+        "css": {
+          "default": {
+            "display": "flex",
+            "alignItems": "center",
+            "gap": "30px",
+            "padding": "30px",
+            "borderBottom": "2px solid #333"
+          }
+        },
+        "animations": [],
+        "editableProperties": ["fontFamily", "textColor", "backgroundColor"]
+      },
+      "website-hero": {
+        "id": "website-hero",
+        "name": "Website Hero Section",
+        "category": "website",
+        "slots": ["headline", "subheadline", "ctaPrimary", "ctaSecondary", "background"],
+        "constraints": {
+          "headline": { "maxChars": 60, "required": true },
+          "subheadline": { "maxChars": 150, "required": false },
+          "ctaPrimary": { "maxChars": 30, "required": true },
+          "ctaSecondary": { "maxChars": 30, "required": false }
+        },
+        "css": {
+          "default": {
+            "minHeight": "80vh",
+            "display": "flex",
+            "flexDirection": "column",
+            "justifyContent": "center",
+            "alignItems": "center",
+            "textAlign": "center",
+            "padding": "60px"
+          }
+        },
+        "animations": ["fadeIn", "slideUp", "scaleIn"],
+        "editableProperties": ["backgroundImage", "overlayColor", "fontSize"]
+      }
+    },
+    "components": {
+      "heading": {
+        "id": "heading",
+        "name": "Heading Text",
+        "type": "text",
+        "slotType": "title",
+        "css": {
+          "default": {
+            "fontSize": "2.5rem",
+            "fontWeight": "bold",
+            "marginBottom": "1rem"
+          }
+        },
+        "editableProperties": ["fontSize", "fontWeight", "textColor", "textAlign"]
+      },
+      "subtitle": {
+        "id": "subtitle",
+        "name": "Subtitle Text",
+        "type": "text",
+        "slotType": "subtitle",
+        "css": {
+          "default": {
+            "fontSize": "1.5rem",
+            "opacity": "0.8",
+            "marginBottom": "2rem"
+          }
+        },
+        "editableProperties": ["fontSize", "textColor", "textAlign"]
+      },
+      "body-text": {
+        "id": "body-text",
+        "name": "Body Text",
+        "type": "text",
+        "slotType": "body",
+        "css": {
+          "default": {
+            "fontSize": "1rem",
+            "lineHeight": "1.6",
+            "whiteSpace": "pre-wrap"
+          }
+        },
+        "editableProperties": ["fontSize", "lineHeight", "textColor"]
+      },
+      "cta-button": {
+        "id": "cta-button",
+        "name": "CTA Button",
+        "type": "interactive",
+        "slotType": "cta",
+        "css": {
+          "default": {
+            "padding": "12px 24px",
+            "borderRadius": "8px",
+            "fontWeight": "bold",
+            "cursor": "pointer",
+            "border": "none"
+          }
+        },
+        "editableProperties": ["backgroundColor", "textColor", "borderRadius", "padding"]
+      },
+      "mermaid-diagram": {
+        "id": "mermaid-diagram",
+        "name": "Mermaid Diagram",
+        "type": "diagram",
+        "slotType": "visual",
+        "css": {
+          "default": {
+            "width": "100%",
+            "textAlign": "center"
+          }
+        },
+        "editableProperties": ["backgroundColor", "scale"],
+        "requires": ["mermaid"]
+      },
+      "stat-box": {
+        "id": "stat-box",
+        "name": "Statistics Box",
+        "type": "data",
+        "slotType": "content",
+        "css": {
+          "default": {
+            "padding": "20px",
+            "borderRadius": "12px",
+            "textAlign": "center"
+          }
+        },
+        "editableProperties": ["backgroundColor", "fontSize", "borderRadius"]
+      }
+    },
+    "themes": {
+      "modern": {
+        "id": "modern",
+        "name": "Modern Clean",
+        "colors": {
+          "primary": "#3B82F6",
+          "secondary": "#10B981",
+          "background": "#FFFFFF",
+          "text": "#1F2937",
+          "accent": "#8B5CF6"
+        },
+        "fonts": {
+          "heading": "Inter, sans-serif",
+          "body": "Inter, sans-serif"
+        },
+        "spacing": "16px",
+        "borderRadius": "8px"
+      },
+      "dark": {
+        "id": "dark",
+        "name": "Dark Mode",
+        "colors": {
+          "primary": "#6366F1",
+          "secondary": "#EC4899",
+          "background": "#111827",
+          "text": "#F9FAFB",
+          "accent": "#14B8A6"
+        },
+        "fonts": {
+          "heading": "Inter, sans-serif",
+          "body": "Inter, sans-serif"
+        },
+        "spacing": "16px",
+        "borderRadius": "12px"
+      },
+      "gradient": {
+        "id": "gradient",
+        "name": "Gradient Theme",
+        "colors": {
+          "primary": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          "secondary": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+          "background": "#FFFFFF",
+          "text": "#1F2937",
+          "accent": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
+        },
+        "fonts": {
+          "heading": "Poppins, sans-serif",
+          "body": "Poppins, sans-serif"
+        },
+        "spacing": "20px",
+        "borderRadius": "16px"
+      }
+    }
+  }
+}

@@ -1,0 +1,177 @@
+{
+  "version": "1.0",
+  "description": "Example AI conversations for the MCP server",
+  "examples": [
+    {
+      "name": "Generate Presentation",
+      "user_prompt": "Create a presentation about renewable energy with 4 slides",
+      "ai_response": {
+        "action": "create_presentation",
+        "topic": "renewable energy",
+        "slideCount": 4,
+        "layouts": ["intro", "content", "content", "outro"]
+      },
+      "mcp_calls": [
+        {
+          "tool": "generate_presentation",
+          "arguments": { "topic": "renewable energy", "slideCount": 4 }
+        }
+      ]
+    },
+    {
+      "name": "Generate Single Page",
+      "user_prompt": "Make an Instagram carousel post about coffee",
+      "ai_response": {
+        "action": "create_page",
+        "layoutId": "carousel-card",
+        "content": {
+          "headline": "☕ The Art of Perfect Coffee",
+          "content": "Discover the secrets of brewing the perfect cup. From bean selection to water temperature, every detail matters.",
+          "cta": "Learn More",
+          "visual": "mermaid: graph TD\nA[Beans] --> B[Grind]\nB --> C[Water]\nC --> D[Coffee]"
+        },
+        "topic": "coffee"
+      },
+      "mcp_calls": [
+        {
+          "tool": "generate_content",
+          "arguments": {
+            "layoutId": "carousel-card",
+            "topic": "coffee",
+            "tone": "engaging"
+          }
+        },
+        {
+          "tool": "create_page",
+          "arguments": {
+            "layoutId": "carousel-card",
+            "content": {
+              "headline": "☕ The Art of Perfect Coffee",
+              "content": "Discover the secrets of brewing the perfect cup. From bean selection to water temperature, every detail matters.",
+              "cta": "Learn More"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update Existing Page",
+      "user_prompt": "Change the title to 'Introduction to AI' and update the body with more details about machine learning",
+      "ai_response": {
+        "action": "update_page",
+        "pageId": "page_abc123",
+        "updates": {
+          "title": "Introduction to AI",
+          "body": "Artificial Intelligence (AI) refers to the simulation of human intelligence in machines. Machine Learning is a subset of AI that enables systems to learn and improve from experience without being explicitly programmed."
+        }
+      },
+      "mcp_calls": [
+        {
+          "tool": "get_project_status",
+          "arguments": {}
+        },
+        {
+          "tool": "update_page_content",
+          "arguments": {
+            "pageId": "page_abc123",
+            "slot": "title",
+            "content": "Introduction to AI"
+          }
+        },
+        {
+          "tool": "update_page_content",
+          "arguments": {
+            "pageId": "page_abc123",
+            "slot": "body",
+            "content": "Artificial Intelligence (AI) refers to the simulation of human intelligence in machines. Machine Learning is a subset of AI that enables systems to learn and improve from experience without being explicitly programmed."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Change Theme",
+      "user_prompt": "Apply the dark theme to the entire presentation",
+      "ai_response": {
+        "action": "apply_theme",
+        "themeId": "dark"
+      },
+      "mcp_calls": [
+        {
+          "tool": "get_available_components",
+          "arguments": {}
+        },
+        {
+          "tool": "apply_theme",
+          "arguments": {
+            "themeId": "dark"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Multi-Language Content",
+      "user_prompt": "Create a Spanish version of the introduction slide",
+      "ai_response": {
+        "action": "create_page",
+        "layoutId": "intro",
+        "content": {
+          "title": "Bienvenido a Nuestro Proyecto",
+          "subtitle": "Explorando nuevas posibilidades"
+        },
+        "language": "es"
+      },
+      "mcp_calls": [
+        {
+          "tool": "generate_content",
+          "arguments": {
+            "layoutId": "intro",
+            "topic": "our project",
+            "language": "es"
+          }
+        },
+        {
+          "tool": "create_page",
+          "arguments": {
+            "layoutId": "intro",
+            "content": {
+              "title": "Bienvenido a Nuestro Proyecto",
+              "subtitle": "Explorando nuevas posibilidades"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validate Before Creating",
+      "user_prompt": "Check if this content fits: Title: 'This is a very long title that might exceed the character limit for the intro slide'",
+      "ai_response": {
+        "action": "validate",
+        "layoutId": "intro",
+        "content": {
+          "title": "This is a very long title that might exceed the character limit for the intro slide"
+        }
+      },
+      "mcp_calls": [
+        {
+          "tool": "get_component_details",
+          "arguments": {
+            "layoutId": "intro"
+          }
+        },
+        {
+          "tool": "validate_content",
+          "arguments": {
+            "layoutId": "intro",
+            "content": {
+              "title": "This is a very long title that might exceed the character limit for the intro slide"
+            }
+          }
+        }
+      ],
+      "validation_result": {
+        "valid": false,
+        "errors": ["title exceeds max 50 characters (current: 86)"]
+      }
+    }
+  ]
+}

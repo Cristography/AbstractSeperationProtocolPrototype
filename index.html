@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visual Editor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="logo" onclick="showLayoutModal()">🎨 Visual Editor</div>
+    </div>
+    <div class="toolbar-center">
+      <button class="btn" onclick="addNewPage()">+ Add Slide</button>
+      <button class="btn" onclick="showThemeModal()">🎨 Theme</button>
+      <button class="btn" onclick="showExportModal()">📤 Export</button>
+    </div>
+    <div class="toolbar-right">
+      <button class="btn" onclick="saveProject()">💾 Save</button>
+      <button class="btn" onclick="loadProject()">📂 Load</button>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <!-- Left Sidebar - Pages -->
+    <div class="sidebar">
+      <div class="sidebar-header">Slides</div>
+      <div class="sidebar-content">
+        <div class="pages-list" id="pagesList"></div>
+        <button class="add-page-btn" onclick="showLayoutModal()">
+          <span>+</span> Add Slide
+        </button>
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-container">
+      <div class="canvas-toolbar">
+        <div class="zoom-controls">
+          <button class="btn btn-icon" onclick="zoomOut()">−</button>
+          <span class="zoom-level" id="zoomLevel">100%</span>
+          <button class="btn btn-icon" onclick="zoomIn()">+</button>
+        </div>
+        <div class="slide-nav">
+          <button class="btn btn-icon" onclick="prevSlide()">←</button>
+          <span id="slideCounter">0 / 0</span>
+          <button class="btn btn-icon" onclick="nextSlide()">→</button>
+        </div>
+      </div>
+      <div class="canvas-area" id="canvasArea">
+        <div class="empty-canvas" id="emptyCanvas">
+          <h2>Start Creating</h2>
+          <p>Add your first slide to begin</p>
+          <div class="empty-grid">
+            <button class="empty-btn" onclick="addPage('title-slide')">Title Slide</button>
+            <button class="empty-btn" onclick="addPage('content-slide')">Content Slide</button>
+            <button class="empty-btn" onclick="addPage('instagram-post')">Instagram Post</button>
+          </div>
+        </div>
+        <div class="slide-wrapper" id="slideWrapper" style="display:none">
+          <div class="slide" id="currentSlide"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar - Properties -->
+    <div class="properties-panel">
+      <div class="property-section">
+        <h3>Slide Settings</h3>
+        <div class="property-group">
+          <label>Layout</label>
+          <select id="layoutSelect" onchange="changeLayout(this.value)">
+            <option value="title-slide">Title Slide</option>
+            <option value="content-slide">Content Slide</option>
+            <option value="two-column">Two Columns</option>
+            <option value="quote-slide">Quote Slide</option>
+            <option value="instagram-post">Instagram Post</option>
+            <option value="carousel-card">Carousel Card</option>
+            <option value="resume-header">Resume Header</option>
+            <option value="resume-section">Resume Section</option>
+            <option value="hero-section">Hero Section</option>
+            <option value="feature-box">Feature Box</option>
+          </select>
+        </div>
+        <div class="property-group">
+          <label>Animation</label>
+          <select id="animationSelect" onchange="changeAnimation(this.value)">
+            <option value="none">None</option>
+            <option value="fade">Fade</option>
+            <option value="slide-up">Slide Up</option>
+            <option value="slide-left">Slide Left</option>
+            <option value="zoom">Zoom</option>
+            <option value="bounce">Bounce</option>
+          </select>
+        </div>
+        <div class="action-buttons">
+          <button class="btn" onclick="duplicateSlide()">Duplicate</button>
+          <button class="btn" style="background:var(--danger)" onclick="deleteSlide()">Delete</button>
+        </div>
+      </div>
+      <div class="property-section" id="fieldsSection">
+        <h3>Content</h3>
+        <div id="fieldsContainer"></div>
+      </div>
+      <div class="property-section" id="colorsSection">
+        <h3>Colors</h3>
+        <div class="color-row">
+          <div class="property-group">
+            <label>Background</label>
+            <input type="color" id="bgColor" onchange="updateColor('bg', this.value)">
+          </div>
+          <div class="property-group">
+            <label>Text</label>
+            <input type="color" id="textColor" onchange="updateColor('text', this.value)">
+          </div>
+        </div>
+        <div class="color-row">
+          <div class="property-group">
+            <label>Primary</label>
+            <input type="color" id="primaryColor" onchange="updateColor('primary', this.value)">
+          </div>
+          <div class="property-group">
+            <label>Secondary</label>
+            <input type="color" id="secondaryColor" onchange="updateColor('secondary', this.value)">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Layout Modal -->
+  <div class="modal-overlay" id="layoutModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Choose Layout</h2>
+        <button class="btn btn-icon" onclick="hideLayoutModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="layout-categories">
+          <button class="layout-category-btn active" data-category="all" onclick="filterLayouts('all')">All</button>
+          <button class="layout-category-btn" data-category="presentation" onclick="filterLayouts('presentation')">Presentation</button>
+          <button class="layout-category-btn" data-category="social" onclick="filterLayouts('social')">Social Media</button>
+          <button class="layout-category-btn" data-category="resume" onclick="filterLayouts('resume')">Resume</button>
+          <button class="layout-category-btn" data-category="website" onclick="filterLayouts('website')">Website</button>
+        </div>
+        <div class="layout-grid" id="layoutGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Theme Modal -->
+  <div class="modal-overlay" id="themeModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Choose Theme</h2>
+        <button class="btn btn-icon" onclick="hideThemeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="theme-grid" id="themeGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Modal -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Export</h2>
+        <button class="btn btn-icon" onclick="hideExportModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="property-group">
+          <label>Format</label>
+          <select id="exportFormat">
+            <option value="pptx">PowerPoint (.pptx)</option>
+            <option value="html">HTML (Editable)</option>
+            <option value="json">JSON (Project)</option>
+            <option value="png">PNG (Screenshot)</option>
+          </select>
+        </div>
+        <div class="action-buttons" style="margin-top:20px">
+          <button class="btn btn-primary" style="flex:1" onclick="doExport()">Export</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Preview -->
+  <div class="export-preview" id="exportPreview">
+    <div class="export-header">
+      <h2>Export Preview</h2>
+      <button class="btn" onclick="closeExportPreview()">✕ Close</button>
+    </div>
+    <div class="export-content" id="exportContent"></div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="config.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>
