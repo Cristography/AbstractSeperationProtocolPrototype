@@ -60,7 +60,7 @@ let project = {
   type: null,
   items: [],
   currentIndex: 0,
-  zoom: 1,
+  zoom: 0.6,
   theme: null
 };
 let themes = [];
@@ -70,6 +70,7 @@ let layouts = [];
 async function init() {
   await loadConfig();
   loadProjectFromStorage();
+  updateZoom();
   console.log('Editor initialized');
 }
 
@@ -205,6 +206,7 @@ function addItemWithLayout(layoutId) {
 
   hideLayoutLibrary();
   renderAll();
+  updateZoom();
   saveProjectToStorage();
   showToast(layout.name + ' added');
 }
@@ -331,6 +333,150 @@ function renderAll() {
   renderFields();
   updateCounter();
   populateLayoutSelect();
+}
+
+function renderSidebar() {
+  const container = document.getElementById('itemsList');
+  
+  if (project.items.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = project.items.map((item, i) => {
+    const layout = getLayoutById(item.layout);
+    const preview = getItemPreview(item);
+    const isActive = i === project.currentIndex ? 'active' : '';
+    
+    return `
+      <div class="page-item ${isActive}" onclick="changeItem(${i})">
+        <div class="page-num">${i + 1}</div>
+        <div class="page-info">
+          <div class="page-title">${layout?.name || 'Item'}</div>
+          <div class="page-type">${preview.substring(0, 25)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function getItemPreview(item) {
+  const keys = Object.keys(item.content);
+  for (const key of keys) {
+    if (item.content[key] && item.content[key].length > 0) {
+      return item.content[key];
+    }
+  }
+  return 'Empty';
+}
+
+function renderItem() {
+  const emptyCanvas = document.getElementById('emptyCanvas');
+  const itemWrapper = document.getElementById('itemWrapper');
+  const config = CONTENT_TYPES[currentContentType];
+
+  if (project.items.length === 0) {
+    emptyCanvas.style.display = 'flex';
+    itemWrapper.style.display = 'none';
+    return;
+  }
+
+  // Website mode: render all sections in one long scrollable page
+  if (currentContentType === 'website') {
+    renderWebsitePreview();
+    return;
+  }
+
+  // Other modes: render single item
+  emptyCanvas.style.display = 'none';
+  itemWrapper.style.display = 'block';
+
+  const item = project.items[project.currentIndex];
+  const itemEl = document.getElementById('currentItem');
+  
+  // Fixed dimensions for better preview
+  const dimensions = getDimensionsForType(currentContentType);
+  itemEl.style.width = dimensions.width + 'px';
+  itemEl.style.height = dimensions.height + 'px';
+  itemEl.style.background = item.colors.bg;
+  itemEl.style.color = item.colors.text;
+  itemEl.style.margin = '0 auto';
+
+  const layout = getLayoutById(item.layout);
+  itemEl.innerHTML = renderItemContent(layout, item);
+}
+
+function getDimensionsForType(type) {
+  const dims = {
+    'presentation': { width: 960, height: 540 },
+    'resume': { width: 794, height: 1123 },
+    'post': { width: 400, height: 400 },
+    'website': { width: 1200, height: 'auto' }
+  };
+  return dims[type] || { width: 960, height: 540 };
+}
+
+function renderWebsitePreview() {
+  const itemWrapper = document.getElementById('itemWrapper');
+  const itemEl = document.getElementById('currentItem');
+  
+  itemWrapper.style.display = 'block';
+  itemWrapper.style.overflow = 'visible';
+  itemWrapper.style.height = 'auto';
+  
+  itemEl.style.width = '100%';
+  itemEl.style.maxWidth = '1200px';
+  itemEl.style.height = 'auto';
+  itemEl.style.margin = '0 auto';
+  itemEl.style.background = 'transparent';
+  
+  let html = '<div class="website-preview">';
+  
+  project.items.forEach((item, index) => {
+    const layout = getLayoutById(item.layout);
+    html += `<div class="website-section" id="section-${index}" onclick="changeItem(${index})" style="background:${item.colors.bg};color:${item.colors.text};min-height:400px;padding:60px 40px;margin-bottom:20px;border-radius:8px;cursor:pointer;position:relative;">`;
+    html += `<div class="section-number" style="position:absolute;top:10px;left:10px;background:${item.colors.primary};color:white;padding:4px 8px;border-radius:4px;font-size:12px;">Section ${index + 1}</div>`;
+    html += renderItemContent(layout, item);
+    html += '</div>';
+  });
+  
+  html += '</div>';
+  itemEl.innerHTML = html;
+}
+
+function renderItemContent(layout, item) {
+  let html = `<div style="padding: 20px;">`;
+
+  if (!layout) {
+    html += `<h2>${item.layout}</h2><p>Layout not found</p></div>`;
+    return html;
+  }
+
+  // Render based on slot type
+  Object.keys(layout.slots || {}).forEach(slotId => {
+    const slot = layout.slots[slotId];
+    const value = item.content[slotId] || slot.placeholder || '';
+    const isHeading = slotId === 'heading' || slotId === 'title';
+    const isBody = slotId === 'body' || slotId === 'subtitle' || slotId === 'subheadline';
+    const isTextarea = slot.type === 'textarea';
+
+    if (isHeading) {
+      html += `<h1 style="color: ${item.colors.primary}; margin-bottom: 16px; font-size: ${slotId === 'title' ? '36' : '28'}px;" 
+               contenteditable="true" onblur="updateContent('${slotId}', this.innerText)">${value}</h1>`;
+    } else if (isBody) {
+      html += `<p style="font-size: 16px; line-height: 1.6; margin-bottom: 16px;" 
+               contenteditable="true" onblur="updateContent('${slotId}', this.innerText)">${value}</p>`;
+    } else if (isTextarea) {
+      html += `<div style="margin-top: 12px;" contenteditable="true" 
+               onblur="updateContent('${slotId}', this.innerText)">${value}</div>`;
+    } else {
+      html += `<div style="margin-top: 8px; font-size: 14px;" contenteditable="true" 
+               onblur="updateContent('${slotId}', this.innerText)">${value}</div>`;
+    }
+  });
+
+  html += `</div>`;
+  return html;
 }
 
 function renderSidebar() {
@@ -525,18 +671,30 @@ function changeAnimation(animation) {
 
 // Zoom
 function zoomIn() {
-  project.zoom = Math.min(2, project.zoom + 0.1);
+  project.zoom = Math.min(1.5, project.zoom + 0.1);
   updateZoom();
 }
 
 function zoomOut() {
-  project.zoom = Math.max(0.3, project.zoom - 0.1);
+  project.zoom = Math.max(0.5, project.zoom - 0.1);
   updateZoom();
 }
 
 function updateZoom() {
-  document.getElementById('itemWrapper').style.transform = `scale(${project.zoom})`;
-  document.getElementById('zoomLevel').textContent = Math.round(project.zoom * 100) + '%';
+  const wrapper = document.getElementById('itemWrapper');
+  const item = document.getElementById('currentItem');
+  
+  // For non-website items, scale the wrapper
+  if (currentContentType !== 'website' && wrapper) {
+    wrapper.style.transform = `scale(${project.zoom})`;
+    wrapper.style.transformOrigin = 'top center';
+  }
+  
+  // Show zoom level
+  const zoomLevel = document.getElementById('zoomLevel');
+  if (zoomLevel) {
+    zoomLevel.textContent = Math.round(project.zoom * 100) + '%';
+  }
 }
 
 // Theme Modal
