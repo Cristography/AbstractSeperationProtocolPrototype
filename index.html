@@ -6,38 +6,88 @@
   <title>Visual Editor</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
 </head>
 <body>
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <div class="toolbar-left">
-      <div class="logo" onclick="showLayoutModal()">🎨 Visual Editor</div>
-    </div>
-    <div class="toolbar-center">
-      <button class="btn" onclick="addNewPage()">+ Add Slide</button>
-      <button class="btn" onclick="showThemeModal()">🎨 Theme</button>
-      <button class="btn" onclick="showExportModal()">📤 Export</button>
-    </div>
-    <div class="toolbar-right">
-      <button class="btn" onclick="saveProject()">💾 Save</button>
-      <button class="btn" onclick="loadProject()">📂 Load</button>
+  <!-- Welcome Modal -->
+  <div class="modal-overlay show" id="welcomeModal">
+    <div class="modal" style="max-width: 900px;">
+      <div class="modal-header">
+        <h2>Create New Project</h2>
+      </div>
+      <div class="modal-body">
+        <p style="text-align: center; margin-bottom: 30px; color: #666;">Choose what type of content you want to create:</p>
+        <div class="type-selector">
+          <div class="type-card" onclick="selectContentType('presentation')">
+            <div class="type-icon"><i class="fas fa-play-circle"></i></div>
+            <h3>Presentation</h3>
+            <p>16:9 slides with title, content, charts & diagrams</p>
+          </div>
+          <div class="type-card" onclick="selectContentType('website')">
+            <div class="type-icon"><i class="fas fa-globe"></i></div>
+            <h3>Website</h3>
+            <p>Long scrolling sections for landing pages</p>
+          </div>
+          <div class="type-card" onclick="selectContentType('resume')">
+            <div class="type-icon"><i class="fas fa-file-alt"></i></div>
+            <h3>Resume</h3>
+            <p>A4 professional documents & CVs</p>
+          </div>
+          <div class="type-card" onclick="selectContentType('post')">
+            <div class="type-icon"><i class="fas fa-share-alt"></i></div>
+            <h3>Social Post</h3>
+            <p>Social media images & carousels</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="main-container">
-    <!-- Left Sidebar - Pages -->
+  <!-- Toolbar -->
+  <div class="toolbar" id="mainToolbar" style="display: none;">
+    <div class="toolbar-left">
+      <div class="logo" onclick="showNewProjectModal()"><i class="fas fa-plus"></i> New Project</div>
+      <div class="toolbar-divider"></div>
+      <div class="current-type-badge" id="currentTypeBadge">
+        <i class="fas fa-play-circle"></i> Presentation
+      </div>
+    </div>
+    <div class="toolbar-center">
+      <div class="toolbar-group" id="presentation-controls">
+        <button class="btn" onclick="addNewItem()"><i class="fas fa-plus"></i> Add Slide</button>
+        <button class="btn" onclick="duplicateItem()"><i class="fas fa-copy"></i></button>
+        <button class="btn" onclick="deleteItem()" style="color: #ef4444;"><i class="fas fa-trash"></i></button>
+      </div>
+      <div class="toolbar-group" id="website-controls" style="display: none;">
+        <button class="btn" onclick="addWebsiteSection()"><i class="fas fa-plus"></i> Add Section</button>
+      </div>
+      <div class="toolbar-group" id="resume-controls" style="display: none;">
+        <button class="btn" onclick="addResumeSection()"><i class="fas fa-plus"></i> Add Section</button>
+        <button class="btn" onclick="addResumePage()"><i class="fas fa-file"></i> New Page</button>
+      </div>
+      <div class="toolbar-group" id="post-controls" style="display: none;">
+        <button class="btn" onclick="addPost()"><i class="fas fa-plus"></i> New Post</button>
+      </div>
+    </div>
+    <div class="toolbar-right">
+      <button class="btn" onclick="showThemeModal()"><i class="fas fa-palette"></i> Theme</button>
+      <button class="btn" onclick="saveProject()"><i class="fas fa-save"></i> Save</button>
+      <button class="btn" onclick="loadProject()"><i class="fas fa-folder-open"></i> Load</button>
+      <button class="btn" onclick="showLayoutLibrary()"><i class="fas fa-th-large"></i> Layouts</button>
+      <button class="btn btn-primary" onclick="showExportModal()"><i class="fas fa-download"></i> Export</button>
+    </div>
+  </div>
+
+  <div class="main-container" id="mainContainer" style="display: none;">
     <div class="sidebar">
-      <div class="sidebar-header">Slides</div>
+      <div class="sidebar-header" id="sidebarHeader">Slides</div>
       <div class="sidebar-content">
-        <div class="pages-list" id="pagesList"></div>
-        <button class="add-page-btn" onclick="showLayoutModal()">
-          <span>+</span> Add Slide
+        <div class="items-list" id="itemsList"></div>
+        <button class="add-item-btn" onclick="addNewItem()">
+          <span>+</span> <span id="addButtonText">Add Slide</span>
         </button>
       </div>
     </div>
 
-    <!-- Canvas -->
     <div class="canvas-container">
       <div class="canvas-toolbar">
         <div class="zoom-controls">
@@ -45,48 +95,39 @@
           <span class="zoom-level" id="zoomLevel">100%</span>
           <button class="btn btn-icon" onclick="zoomIn()">+</button>
         </div>
-        <div class="slide-nav">
-          <button class="btn btn-icon" onclick="prevSlide()">←</button>
-          <span id="slideCounter">0 / 0</span>
-          <button class="btn btn-icon" onclick="nextSlide()">→</button>
+        <div class="item-nav">
+          <button class="btn btn-icon" onclick="prevItem()">←</button>
+          <span id="itemCounter">0 / 0</span>
+          <button class="btn btn-icon" onclick="nextItem()">→</button>
         </div>
       </div>
       <div class="canvas-area" id="canvasArea">
         <div class="empty-canvas" id="emptyCanvas">
-          <h2>Start Creating</h2>
-          <p>Add your first slide to begin</p>
-          <div class="empty-grid">
-            <button class="empty-btn" onclick="addPage('title-slide')">Title Slide</button>
-            <button class="empty-btn" onclick="addPage('content-slide')">Content Slide</button>
-            <button class="empty-btn" onclick="addPage('instagram-post')">Instagram Post</button>
+          <div class="empty-state">
+            <i class="fas fa-plus-circle"></i>
+            <h2>Get Started</h2>
+            <p id="emptyMessage">Add your first item</p>
+            <button class="btn btn-primary" onclick="addNewItem()">
+              <i class="fas fa-plus"></i> Add Item
+            </button>
           </div>
         </div>
-        <div class="slide-wrapper" id="slideWrapper" style="display:none">
-          <div class="slide" id="currentSlide"></div>
+        <div class="item-wrapper" id="itemWrapper" style="display: none;">
+          <div class="item-content" id="currentItem"></div>
         </div>
       </div>
     </div>
 
-    <!-- Right Sidebar - Properties -->
     <div class="properties-panel">
       <div class="property-section">
-        <h3>Slide Settings</h3>
+        <h3>Settings</h3>
         <div class="property-group">
           <label>Layout</label>
           <select id="layoutSelect" onchange="changeLayout(this.value)">
-            <option value="title-slide">Title Slide</option>
-            <option value="content-slide">Content Slide</option>
-            <option value="two-column">Two Columns</option>
-            <option value="quote-slide">Quote Slide</option>
-            <option value="instagram-post">Instagram Post</option>
-            <option value="carousel-card">Carousel Card</option>
-            <option value="resume-header">Resume Header</option>
-            <option value="resume-section">Resume Section</option>
-            <option value="hero-section">Hero Section</option>
-            <option value="feature-box">Feature Box</option>
+            <option value="">Select layout...</option>
           </select>
         </div>
-        <div class="property-group">
+        <div class="property-group" id="animationGroup">
           <label>Animation</label>
           <select id="animationSelect" onchange="changeAnimation(this.value)">
             <option value="none">None</option>
@@ -94,19 +135,18 @@
             <option value="slide-up">Slide Up</option>
             <option value="slide-left">Slide Left</option>
             <option value="zoom">Zoom</option>
-            <option value="bounce">Bounce</option>
           </select>
         </div>
         <div class="action-buttons">
-          <button class="btn" onclick="duplicateSlide()">Duplicate</button>
-          <button class="btn" style="background:var(--danger)" onclick="deleteSlide()">Delete</button>
+          <button class="btn" onclick="duplicateItem()">Duplicate</button>
+          <button class="btn" style="background: var(--danger);" onclick="deleteItem()">Delete</button>
         </div>
       </div>
       <div class="property-section" id="fieldsSection">
         <h3>Content</h3>
         <div id="fieldsContainer"></div>
       </div>
-      <div class="property-section" id="colorsSection">
+      <div class="property-section">
         <h3>Colors</h3>
         <div class="color-row">
           <div class="property-group">
@@ -132,30 +172,15 @@
     </div>
   </div>
 
-  <!-- Layout Modal -->
-  <div class="modal-overlay" id="layoutModal">
-    <div class="modal">
+  <!-- Layout Library Modal -->
+  <div class="modal-overlay" id="layoutLibraryModal">
+    <div class="modal" style="max-width: 1000px;">
       <div class="modal-header">
-        <h2>Choose Layout</h2>
-        <button class="btn btn-icon" onclick="hideLayoutModal()">✕</button>
+        <h2 id="layoutLibraryTitle">Layouts</h2>
+        <button class="btn btn-icon" onclick="hideLayoutLibrary()">✕</button>
       </div>
       <div class="modal-body">
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Content Type:</label>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button class="btn" onclick="setContentType('presentation')" id="btn-presentation" style="flex: 1;"><i class="fas fa-play-circle"></i> Presentation</button>
-            <button class="btn" onclick="setContentType('post')" id="btn-post" style="flex: 1;"><i class="fas fa-share-alt"></i> Social Post</button>
-            <button class="btn" onclick="setContentType('resume')" id="btn-resume" style="flex: 1;"><i class="fas fa-file-alt"></i> Resume</button>
-            <button class="btn" onclick="setContentType('website')" id="btn-website" style="flex: 1;"><i class="fas fa-globe"></i> Website</button>
-          </div>
-        </div>
-        <div class="layout-categories">
-          <button class="layout-category-btn active" data-category="all" onclick="filterLayouts('all')">All</button>
-          <button class="layout-category-btn" data-category="presentation" onclick="filterLayouts('presentation')">Presentation</button>
-          <button class="layout-category-btn" data-category="social" onclick="filterLayouts('social')">Social Media</button>
-          <button class="layout-category-btn" data-category="resume" onclick="filterLayouts('resume')">Resume</button>
-          <button class="layout-category-btn" data-category="website" onclick="filterLayouts('website')">Website</button>
-        </div>
+        <div class="layout-categories" id="layoutCategories"></div>
         <div class="layout-grid" id="layoutGrid"></div>
       </div>
     </div>
@@ -184,34 +209,22 @@
       <div class="modal-body">
         <div class="property-group">
           <label>Format</label>
-          <select id="exportFormat">
-            <option value="pptx">PowerPoint (.pptx)</option>
-            <option value="html">HTML (Editable)</option>
-            <option value="json">JSON (Project)</option>
-            <option value="png">PNG (Screenshot)</option>
-          </select>
+          <select id="exportFormat"></select>
         </div>
-        <div class="action-buttons" style="margin-top:20px">
-          <button class="btn btn-primary" style="flex:1" onclick="doExport()">Export</button>
+        <div class="action-buttons" style="margin-top: 20px;">
+          <button class="btn btn-primary" style="flex: 1;" onclick="doExport()">Export</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Export Preview -->
-  <div class="export-preview" id="exportPreview">
-    <div class="export-header">
-      <h2>Export Preview</h2>
-      <button class="btn" onclick="closeExportPreview()">✕ Close</button>
-    </div>
-    <div class="export-content" id="exportContent"></div>
-  </div>
+  <!-- File Input for Loading -->
+  <input type="file" id="loadFileInput" accept=".json" style="display: none;" onchange="handleFileLoad(event)">
 
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
   <script src="config.js"></script>
-  <script src="js/components.js"></script>
   <script src="editor.js"></script>
 </body>
 </html>
