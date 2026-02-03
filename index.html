@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Visual Editor</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
 </head>
 <body>
   <!-- Toolbar -->
@@ -138,6 +140,15 @@
         <button class="btn btn-icon" onclick="hideLayoutModal()">✕</button>
       </div>
       <div class="modal-body">
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Content Type:</label>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn" onclick="setContentType('presentation')" id="btn-presentation" style="flex: 1;"><i class="fas fa-play-circle"></i> Presentation</button>
+            <button class="btn" onclick="setContentType('post')" id="btn-post" style="flex: 1;"><i class="fas fa-share-alt"></i> Social Post</button>
+            <button class="btn" onclick="setContentType('resume')" id="btn-resume" style="flex: 1;"><i class="fas fa-file-alt"></i> Resume</button>
+            <button class="btn" onclick="setContentType('website')" id="btn-website" style="flex: 1;"><i class="fas fa-globe"></i> Website</button>
+          </div>
+        </div>
         <div class="layout-categories">
           <button class="layout-category-btn active" data-category="all" onclick="filterLayouts('all')">All</button>
           <button class="layout-category-btn" data-category="presentation" onclick="filterLayouts('presentation')">Presentation</button>
@@ -200,6 +211,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="config.js"></script>
+  <script src="js/components.js"></script>
   <script src="editor.js"></script>
 </body>
 </html>

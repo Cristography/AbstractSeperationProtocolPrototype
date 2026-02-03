@@ -1,0 +1,25 @@
+<div class="slide-container">
+    <div class="slide-content">
+        <h2 class="heading2-left" contenteditable="true">Architecture Diagram</h2>
+        <div class="component-diagram-container" style="margin-top: 2rem;">
+            <div class="component-mermaid component-mermaid-center">
+                <pre class="mermaid" contenteditable="true">
+graph TD
+    A[Client] --> B[Load Balancer]
+    B --> C[API Server]
+    C --> D[(Database)]
+    C --> E[Cache]
+    C --> F[External API]
+    style A fill:#2563eb,stroke:#1e40af,color:white
+    style B fill:#10b981,stroke:#059669,color:white
+    style C fill:#f59e0b,stroke:#d97706,color:white
+    style D fill:#64748b,stroke:#475569,color:white
+    style E fill:#64748b,stroke:#475569,color:white
+    style F fill:#64748b,stroke:#475569,color:white
+                </pre>
+            </div>
+            <p class="component-mermaid-caption" contenteditable="true">System Architecture Overview</p>
+        </div>
+    </div>
+    <div class="slide-number">7</div>
+</div>

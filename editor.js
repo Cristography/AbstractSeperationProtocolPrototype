@@ -1,13 +1,55 @@
+// Content Types Configuration
+const CONTENT_TYPES = {
+  presentation: {
+    name: 'Presentation',
+    icon: 'fa-play-circle',
+    aspectRatio: '16/9',
+    width: 1280,
+    height: 720,
+    cssFolder: 'presentations',
+    layoutsFolder: 'presentations/layouts'
+  },
+  post: {
+    name: 'Social Post',
+    icon: 'fa-share-alt',
+    aspectRatio: '1/1',
+    width: 1080,
+    height: 1080,
+    cssFolder: 'posts',
+    layoutsFolder: 'posts/layouts'
+  },
+  resume: {
+    name: 'Resume',
+    icon: 'fa-file-alt',
+    aspectRatio: '210mm/297mm',
+    width: 794,
+    height: 1123,
+    cssFolder: 'resume',
+    layoutsFolder: 'resume/layouts'
+  },
+  website: {
+    name: 'Website Section',
+    icon: 'fa-globe',
+    aspectRatio: 'auto',
+    width: 1200,
+    height: 'auto',
+    cssFolder: 'website',
+    layoutsFolder: 'website/layouts'
+  }
+};
+
 // Config loaded from config.js
 let layouts = [];
 let themes = [];
 let currentTheme = null;
+let currentContentType = 'presentation';
 
 // Project state
 let project = {
   pages: [],
   currentIndex: 0,
-  zoom: 1
+  zoom: 1,
+  contentType: 'presentation'
 };
 
 // Drag & Drop state
@@ -18,6 +60,7 @@ let dragOverItem = null;
 async function init() {
   await loadConfig();
   loadProject();
+  updateContentTypeButtons();
   renderLayoutOptions();
   renderThemeOptions();
   setupDragAndDrop();
@@ -28,7 +71,10 @@ async function loadConfig() {
   try {
     const response = await fetch('config.json');
     const config = await response.json();
-    layouts = config.layouts;
+    layouts = config.layouts.map(layout => ({
+      ...layout,
+      type: layout.category // Map category to type
+    }));
     themes = config.themes;
     currentTheme = themes[0];
   } catch (e) {
@@ -40,15 +86,68 @@ async function loadConfig() {
   }
 }
 
+function getContentTypeByCategory(category) {
+  const typeMap = {
+    'presentation': 'presentation',
+    'social': 'post',
+    'resume': 'resume',
+    'website': 'website'
+  };
+  return typeMap[category] || 'presentation';
+}
+
+function setContentType(type) {
+  currentContentType = type;
+  project.contentType = type;
+  saveProject();
+  updateCanvasPreview();
+  updateLayoutFilter();
+}
+
+function updateLayoutFilter() {
+  const categoryBtns = document.querySelectorAll('.layout-category-btn');
+  categoryBtns.forEach(btn => {
+    const cat = btn.dataset.category;
+    const type = getContentTypeByCategory(cat);
+    btn.classList.toggle('active', type === currentContentType);
+  });
+  renderLayoutOptions();
+}
+
 function getDefaultLayouts() {
   return [
-    { id: 'title-slide', name: 'Title Slide', category: 'presentation', icon: '📝', slots: [{ id: 'title', type: 'text', placeholder: 'Your Title', maxChars: 60 }, { id: 'subtitle', type: 'text', placeholder: 'Subtitle', maxChars: 100 }]},
-    { id: 'content-slide', name: 'Content Slide', category: 'presentation', icon: '📄', slots: [{ id: 'heading', type: 'text', placeholder: 'Heading', maxChars: 50 }, { id: 'body', type: 'textarea', placeholder: 'Body text...', maxChars: 400 }]},
-    { id: 'two-column', name: 'Two Columns', category: 'presentation', icon: '🔀', slots: [{ id: 'heading', type: 'text', placeholder: 'Section heading', maxChars: 50 }, { id: 'left-title', type: 'text', placeholder: 'Left title', maxChars: 40 }, { id: 'left-body', type: 'textarea', placeholder: 'Left content', maxChars: 200 }, { id: 'right-title', type: 'text', placeholder: 'Right title', maxChars: 40 }, { id: 'right-body', type: 'textarea', placeholder: 'Right content', maxChars: 200 }]},
-    { id: 'quote-slide', name: 'Quote Slide', category: 'presentation', icon: '💬', slots: [{ id: 'quote', type: 'textarea', placeholder: 'Quote text', maxChars: 250 }, { id: 'author', type: 'text', placeholder: 'Author name', maxChars: 50 }]},
-    { id: 'instagram-post', name: 'Instagram Post', category: 'social', icon: '📷', slots: [{ id: 'headline', type: 'text', placeholder: 'Headline', maxChars: 80 }, { id: 'body', type: 'textarea', placeholder: 'Post content', maxChars: 250 }, { id: 'cta', type: 'text', placeholder: 'CTA' }]},
-    { id: 'resume-header', name: 'Resume Header', category: 'resume', icon: '👤', slots: [{ id: 'name', type: 'text', placeholder: 'Your Name', maxChars: 40 }, { id: 'title', type: 'text', placeholder: 'Job Title', maxChars: 50 }]},
-    { id: 'hero-section', name: 'Hero Section', category: 'website', icon: '🖥️', slots: [{ id: 'headline', type: 'text', placeholder: 'Hero headline', maxChars: 60 }, { id: 'subheadline', type: 'textarea', placeholder: 'Subheadline', maxChars: 150 }, { id: 'cta-primary', type: 'text', placeholder: 'Primary button' }, { id: 'cta-secondary', type: 'text', placeholder: 'Secondary button' }]}
+    // PRESENTATIONS (16:9)
+    { id: 'title-slide', name: 'Title Slide', category: 'presentation', icon: 'fa-heading', type: 'presentation', slots: [{ id: 'title', type: 'text', placeholder: 'Your Title', maxChars: 60 }, { id: 'subtitle', type: 'text', placeholder: 'Subtitle', maxChars: 100 }]},
+    { id: 'content-slide', name: 'Content Slide', category: 'presentation', icon: 'fa-file-alt', type: 'presentation', slots: [{ id: 'heading', type: 'text', placeholder: 'Heading', maxChars: 50 }, { id: 'body', type: 'textarea', placeholder: 'Body text...', maxChars: 400 }]},
+    { id: 'two-column', name: 'Two Columns', category: 'presentation', icon: 'fa-columns', type: 'presentation', slots: [{ id: 'heading', type: 'text', placeholder: 'Section heading', maxChars: 50 }, { id: 'left-title', type: 'text', placeholder: 'Left title', maxChars: 40 }, { id: 'left-body', type: 'textarea', placeholder: 'Left content', maxChars: 200 }, { id: 'right-title', type: 'text', placeholder: 'Right title', maxChars: 40 }, { id: 'right-body', type: 'textarea', placeholder: 'Right content', maxChars: 200 }]},
+    { id: 'quote-slide', name: 'Quote Slide', category: 'presentation', icon: 'fa-quote-left', type: 'presentation', slots: [{ id: 'quote', type: 'textarea', placeholder: 'Quote text', maxChars: 250 }, { id: 'author', type: 'text', placeholder: 'Author name', maxChars: 50 }]},
+    { id: 'layout-title', name: 'Title with Icon', category: 'presentation', icon: 'fa-star', type: 'presentation', slots: [{ id: 'title', type: 'text', placeholder: 'Your Title', maxChars: 60 }]},
+    { id: 'layout-agenda', name: 'Agenda Process', category: 'presentation', icon: 'fa-list-ol', type: 'presentation', slots: [{ id: 'heading', type: 'text', placeholder: 'Agenda Title', maxChars: 50 }]},
+    { id: 'layout-features', name: 'Features Grid', category: 'presentation', icon: 'fa-th', type: 'presentation', slots: [{ id: 'heading', type: 'text', placeholder: 'Features Title', maxChars: 50 }]},
+    { id: 'layout-flowchart', name: 'Flowchart', category: 'presentation', icon: 'fa-project-diagram', type: 'presentation', slots: [{ id: 'heading', type: 'text', placeholder: 'Flowchart Title', maxChars: 50 }]},
+    { id: 'layout-timeline', name: 'Timeline', category: 'presentation', icon: 'fa-history', type: 'presentation', slots: [{ id: 'heading', type: 'text', placeholder: 'Timeline Title', maxChars: 50 }]},
+    { id: 'layout-thankyou', name: 'Thank You', category: 'presentation', icon: 'fa-check-circle', type: 'presentation', slots: [{ id: 'main-text', type: 'text', placeholder: 'Thank You!', maxChars: 60 }]},
+
+    // SOCIAL POSTS
+    { id: 'instagram-square', name: 'Instagram Square', category: 'social', icon: 'fa-instagram', type: 'post', slots: [{ id: 'headline', type: 'text', placeholder: 'Headline', maxChars: 80 }, { id: 'body', type: 'textarea', placeholder: 'Post content', maxChars: 250 }]},
+    { id: 'instagram-story', name: 'Instagram Story', category: 'social', icon: 'fa-mobile-alt', type: 'post', slots: [{ id: 'headline', type: 'text', placeholder: 'Headline', maxChars: 60 }]},
+    { id: 'linkedin-post', name: 'LinkedIn Post', category: 'social', icon: 'fa-linkedin', type: 'post', slots: [{ id: 'hook', type: 'text', placeholder: 'Hook', maxChars: 100 }, { id: 'body', type: 'textarea', placeholder: 'Post content', maxChars: 300 }]},
+    { id: 'twitter-post', name: 'Twitter/X Post', category: 'social', icon: 'fa-twitter', type: 'post', slots: [{ id: 'content', type: 'textarea', placeholder: 'Your tweet...', maxChars: 280 }]},
+    { id: 'facebook-post', name: 'Facebook Post', category: 'social', icon: 'fa-facebook', type: 'post', slots: [{ id: 'body', type: 'textarea', placeholder: 'Post content', maxChars: 500 }]},
+    { id: 'youtube-thumbnail', name: 'YouTube Thumbnail', category: 'social', icon: 'fa-youtube', type: 'post', slots: [{ id: 'title', type: 'text', placeholder: 'Video Title', maxChars: 60 }]},
+
+    // RESUME
+    { id: 'resume-header', name: 'Resume Header', category: 'resume', icon: 'fa-user', type: 'resume', slots: [{ id: 'name', type: 'text', placeholder: 'Your Name', maxChars: 40 }, { id: 'title', type: 'text', placeholder: 'Job Title', maxChars: 50 }]},
+    { id: 'resume-section', name: 'Resume Section', category: 'resume', icon: 'fa-list', type: 'resume', slots: [{ id: 'section-title', type: 'text', placeholder: 'Section Title', maxChars: 50 }]},
+    { id: 'resume-skills', name: 'Skills Section', category: 'resume', icon: 'fa-cogs', type: 'resume', slots: [{ id: 'title', type: 'text', placeholder: 'Skills', maxChars: 50 }]},
+    { id: 'resume-full', name: 'Full Resume', category: 'resume', icon: 'fa-file', type: 'resume', slots: []},
+
+    // WEBSITE
+    { id: 'hero-section', name: 'Hero Section', category: 'website', icon: 'fa-desktop', type: 'website', slots: [{ id: 'headline', type: 'text', placeholder: 'Hero headline', maxChars: 60 }, { id: 'subheadline', type: 'textarea', placeholder: 'Subheadline', maxChars: 150 }]},
+    { id: 'features-section', name: 'Features Section', category: 'website', icon: 'fa-th-large', type: 'website', slots: [{ id: 'heading', type: 'text', placeholder: 'Features Title', maxChars: 50 }]},
+    { id: 'about-section', name: 'About Section', category: 'website', icon: 'fa-info-circle', type: 'website', slots: [{ id: 'heading', type: 'text', placeholder: 'About Title', maxChars: 50 }]},
+    { id: 'cta-section', name: 'CTA Section', category: 'website', icon: 'fa-bullhorn', type: 'website', slots: [{ id: 'heading', type: 'text', placeholder: 'CTA Title', maxChars: 60 }, { id: 'body', type: 'textarea', placeholder: 'CTA description', maxChars: 200 }]},
+    { id: 'footer-section', name: 'Footer Section', category: 'website', icon: 'fa-sitemap', type: 'website', slots: [{ id: 'brand', type: 'text', placeholder: 'Brand Name', maxChars: 30 }]}
   ];
 }
 
@@ -136,8 +235,17 @@ function addNewPage() {
 }
 
 function addPage(layoutId) {
+  console.log('Adding page with layout:', layoutId);
+  console.log('Available layouts:', layouts.map(l => l.id));
+
   const layout = layouts.find(l => l.id === layoutId);
-  if (!layout) return;
+  if (!layout) {
+    console.error('Layout not found:', layoutId);
+    alert('Layout not found: ' + layoutId);
+    return;
+  }
+
+  console.log('Found layout:', layout.name);
 
   const page = {
     id: generateId(),
@@ -153,9 +261,14 @@ function addPage(layoutId) {
 
   project.pages.push(page);
   project.currentIndex = project.pages.length - 1;
+
+  console.log('Page added. Total pages:', project.pages.length);
+
   hideLayoutModal();
   saveProject();
   updateUI();
+
+  console.log('UI updated successfully');
 }
 
 function duplicateSlide() {
@@ -749,11 +862,37 @@ function updateUI() {
   document.getElementById('slideCounter').textContent =
     project.pages.length > 0 ? `${project.currentIndex + 1} / ${project.pages.length}` : '0 / 0';
   updateZoom();
+  updateContentTypeButtons();
+}
+
+function updateContentTypeButtons() {
+  document.querySelectorAll('#layoutModal .btn[id^="btn-"]').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  const activeBtn = document.getElementById('btn-' + currentContentType);
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+  }
+}
+
+function updateCanvasPreview() {
+  const slide = document.getElementById('currentSlide');
+  if (slide) {
+    const typeConfig = CONTENT_TYPES[currentContentType];
+    slide.style.aspectRatio = typeConfig.aspectRatio;
+    if (typeConfig.width) {
+      slide.style.maxWidth = typeConfig.width + 'px';
+    }
+    if (typeConfig.height && typeConfig.height !== 'auto') {
+      slide.style.maxHeight = typeConfig.height + 'px';
+    }
+  }
 }
 
 // Modals
 function showLayoutModal() {
   document.getElementById('layoutModal').classList.add('show');
+  updateContentTypeButtons();
   renderLayoutOptions();
 }
 
@@ -786,15 +925,27 @@ function filterLayouts(category) {
 
 function renderLayoutOptions(filterCategory = 'all') {
   const grid = document.getElementById('layoutGrid');
-  const filtered = filterCategory === 'all' 
-    ? layouts 
-    : layouts.filter(l => l.category === filterCategory);
-  
+
+  console.log('Rendering layouts for type:', currentContentType);
+  console.log('Filter category:', filterCategory);
+  console.log('Total layouts:', layouts.length);
+
+  const filtered = filterCategory === 'all'
+    ? layouts.filter(l => l.type === currentContentType)
+    : layouts.filter(l => l.category === filterCategory && l.type === currentContentType);
+
+  console.log('Filtered layouts:', filtered.length);
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<p style="text-align:center;padding:40px;color:#666;">No layouts available for this content type. Please try another.</p>';
+    return;
+  }
+
   grid.innerHTML = filtered.map(l => `
     <div class="layout-option" onclick="addPage('${l.id}')">
-      <div class="layout-icon">${l.icon || '📄'}</div>
+      <div class="layout-icon"><i class="fas ${l.icon || 'fa-file'}"></i></div>
       <div class="layout-name">${l.name}</div>
-      <div class="layout-category">${l.category}</div>
+      <div class="layout-category">${l.type}</div>
     </div>
   `).join('');
 }
@@ -849,18 +1000,28 @@ function exportJSON() {
 
 function exportHTML() {
   let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Presentation</title>`;
+  html += `<link rel="stylesheet" href="core/base.css">`;
+  html += `<link rel="stylesheet" href="core/components.css">`;
+  html += `<link rel="stylesheet" href="core/icons-diagrams.css">`;
+  html += `<link rel="stylesheet" href="core/mermaid-diagrams.css">`;
+  html += `<link rel="stylesheet" href="themes/default.css">`;
+  html += `<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">`;
+  html += `<script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"><\/script>`;
   html += `<style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f0f0; padding: 20px; }
-    .slide { background: white; margin: 0 auto 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; page-break-after: always; }
-    @media print { body { background: white; } .slide { box-shadow: none; margin: 0; } }
-  </style></head><body>`;
+    .slide-container { background: white; margin: 0 auto 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; page-break-after: always; max-width: 1280px; }
+    @media print { body { background: white; } .slide-container { box-shadow: none; margin: 0; } }
+    [contenteditable] { outline: none; }
+  </style></head><body onload="mermaid.initialize({startOnLoad:true});">`;
 
   project.pages.forEach((page, i) => {
     const layout = layouts.find(l => l.id === page.layout);
     const colors = page.colors;
-    html += `<div class="slide" style="width:960px;height:540px;background:${colors.bg};color:${colors.text};position:relative;padding:48px;display:flex;flex-direction:column;">`;
+    html += `<div class="slide-container" style="background:${colors.bg};color:${colors.text};">`;
+    html += `<div class="slide-content">`;
     html += renderSlideHTML(page, layout, colors);
+    html += `</div>`;
+    html += `<div class="slide-number">${i + 1}</div>`;
     html += `</div>`;
   });
 

@@ -1,0 +1,47 @@
+:root {
+  --page-width: 210mm;
+  --page-height: 297mm;
+  --font-size-base: 11pt;
+  --margin: 20mm;
+}
+
+.resume-container {
+  width: var(--page-width);
+  min-height: var(--page-height);
+  background-color: #ffffff;
+  margin: 0 auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.resume-content {
+  padding: var(--margin);
+  display: flex;
+  flex-direction: column;
+}
+
+.resume-page {
+  page-break-after: always;
+  width: var(--page-width);
+  min-height: var(--page-height);
+  background: white;
+  margin-bottom: 20px;
+}
+
+@media print {
+  .resume-container {
+    box-shadow: none;
+    margin: 0;
+  }
+  
+  body {
+    background: #f0f0f0;
+  }
+}
+
+@media screen {
+  .resume-container {
+    margin-top: 20px;
+    margin-bottom: 20px;
+  }
+}

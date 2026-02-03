@@ -109,6 +109,23 @@ body {
   height: 16px;
 }
 
+.btn.active,
+.btn:active {
+  background: var(--accent);
+  color: white;
+}
+
+/* Content Type Selector in Modal */
+#layoutModal .btn[id^="btn-"] {
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+#layoutModal .btn[id^="btn-"].active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 /* Main Layout */
 .main-container {
   display: flex;

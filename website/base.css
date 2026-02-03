@@ -1,0 +1,41 @@
+:root {
+  --container-width: 1200px;
+  --section-padding: 80px 0;
+  --font-size-base: 16px;
+}
+
+.website-container {
+  width: 100%;
+  background-color: #ffffff;
+}
+
+.website-content {
+  width: 100%;
+  max-width: var(--container-width);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.website-section {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--section-padding);
+  position: relative;
+}
+
+.website-section.narrow {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.website-section.wide {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.website-fullwidth {
+  width: 100%;
+}
