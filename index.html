@@ -6,6 +6,9 @@
   <title>Visual Editor</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
   <!-- Welcome Modal -->
@@ -69,6 +72,9 @@
       </div>
     </div>
     <div class="toolbar-right">
+      <button class="btn" onclick="undo()" title="Undo (Ctrl+Z)"><i class="fas fa-undo"></i></button>
+      <button class="btn" onclick="redo()" title="Redo (Ctrl+Y)"><i class="fas fa-redo"></i></button>
+      <div class="toolbar-divider"></div>
       <button class="btn" onclick="showThemeModal()"><i class="fas fa-palette"></i> Theme</button>
       <button class="btn" onclick="saveProject()"><i class="fas fa-save"></i> Save</button>
       <button class="btn" onclick="loadProject()"><i class="fas fa-folder-open"></i> Load</button>

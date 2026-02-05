@@ -65,12 +65,82 @@ let project = {
 };
 let themes = [];
 let layouts = [];
+let history = [];
+let historyIndex = -1;
+const MAX_HISTORY = 50;
+
+// History Management
+function saveState() {
+  const state = JSON.stringify({
+    items: project.items,
+    currentIndex: project.currentIndex,
+    theme: project.theme
+  });
+
+  if (historyIndex < history.length - 1) {
+    history = history.slice(0, historyIndex + 1);
+  }
+
+  if (history.length >= MAX_HISTORY) {
+    history.shift();
+  }
+
+  history.push(state);
+  historyIndex = history.length - 1;
+}
+
+function undo() {
+  if (historyIndex > 0) {
+    historyIndex--;
+    restoreState(history[historyIndex]);
+    renderAll();
+    showToast('Undo');
+  }
+}
+
+function redo() {
+  if (historyIndex < history.length - 1) {
+    historyIndex++;
+    restoreState(history[historyIndex]);
+    renderAll();
+    showToast('Redo');
+  }
+}
+
+function restoreState(stateJson) {
+  const state = JSON.parse(stateJson);
+  project.items = state.items;
+  project.currentIndex = state.currentIndex;
+  project.theme = state.theme;
+  saveProjectToStorage();
+}
+
+// Keyboard Shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        redo();
+      } else {
+        undo();
+      }
+    } else if (e.key === 'y') {
+      e.preventDefault();
+      redo();
+    } else if (e.key === 's') {
+      e.preventDefault();
+      saveProject();
+    }
+  }
+});
 
 // Initialize
 async function init() {
   await loadConfig();
   loadProjectFromStorage();
   updateZoom();
+  saveState();
   console.log('Editor initialized');
 }
 
@@ -201,6 +271,7 @@ function addItemWithLayout(layoutId) {
     item.content[slotId] = layout.slots[slotId].placeholder || '';
   });
 
+  saveState();
   project.items.push(item);
   project.currentIndex = project.items.length - 1;
 
@@ -216,6 +287,7 @@ function duplicateItem() {
   const current = project.items[project.currentIndex];
   const copy = JSON.parse(JSON.stringify(current));
   copy.id = generateId();
+  saveState();
   project.items.splice(project.currentIndex + 1, 0, copy);
   project.currentIndex++;
   renderAll();
@@ -226,6 +298,7 @@ function duplicateItem() {
 function deleteItem() {
   if (project.items.length === 0) return;
   if (!confirm('Delete this item?')) return;
+  saveState();
   project.items.splice(project.currentIndex, 1);
   if (project.currentIndex >= project.items.length) {
     project.currentIndex = Math.max(0, project.items.length - 1);
@@ -494,15 +567,55 @@ function renderSidebar() {
     const isActive = i === project.currentIndex ? 'active' : '';
     
     return `
-      <div class="page-item ${isActive}" onclick="changeItem(${i})">
+      <div class="page-item ${isActive}" draggable="true" 
+           ondragstart="handleDragStart(event, ${i})"
+           ondragover="handleDragOver(event)"
+           ondrop="handleDrop(event, ${i})"
+           onclick="changeItem(${i})">
         <div class="page-num">${currentContentType === 'resume' ? 'P' + (Math.floor(i / 3) + 1) : i + 1}</div>
         <div class="page-info">
           <div class="page-title">${layout?.name || 'Item'}</div>
           <div class="page-type">${preview.substring(0, 25)}</div>
         </div>
+        <div class="drag-handle"><i class="fas fa-grip-vertical"></i></div>
       </div>
     `;
   }).join('');
+}
+
+let draggedIndex = null;
+
+function handleDragStart(event, index) {
+  draggedIndex = index;
+  event.dataTransfer.effectAllowed = 'move';
+  event.target.classList.add('dragging');
+}
+
+function handleDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+}
+
+function handleDrop(event, targetIndex) {
+  event.preventDefault();
+  
+  if (draggedIndex === null || draggedIndex === targetIndex) {
+    return;
+  }
+
+  saveState();
+  
+  const items = [...project.items];
+  const [movedItem] = items.splice(draggedIndex, 1);
+  items.splice(targetIndex, 0, movedItem);
+  
+  project.items = items;
+  project.currentIndex = targetIndex;
+  
+  draggedIndex = null;
+  renderAll();
+  saveProjectToStorage();
+  showToast('Item moved');
 }
 
 function getItemPreview(item) {
@@ -634,6 +747,7 @@ function updateCounter() {
 // Content Updates
 function updateContent(fieldId, value) {
   if (project.items.length === 0) return;
+  saveState();
   project.items[project.currentIndex].content[fieldId] = value;
   renderItem();
   saveProjectToStorage();
@@ -641,6 +755,7 @@ function updateContent(fieldId, value) {
 
 function updateColor(type, value) {
   if (project.items.length === 0) return;
+  saveState();
   project.items[project.currentIndex].colors[type] = value;
   renderItem();
   saveProjectToStorage();
@@ -651,6 +766,7 @@ function changeLayout(layoutId) {
   const layout = getLayoutById(layoutId);
   if (!layout) return;
 
+  saveState();
   const item = project.items[project.currentIndex];
   item.layout = layoutId;
   item.content = {};
@@ -665,6 +781,7 @@ function changeLayout(layoutId) {
 
 function changeAnimation(animation) {
   if (project.items.length === 0) return;
+  saveState();
   project.items[project.currentIndex].animation = animation;
   saveProjectToStorage();
 }
@@ -725,6 +842,7 @@ function applyTheme(themeId) {
   const theme = themes.find(t => t.id === themeId);
   if (!theme) return;
 
+  saveState();
   project.theme = theme;
   project.items.forEach(item => {
     item.colors = { ...theme.colors };
@@ -779,10 +897,236 @@ function exportHTML() {
   showToast('HTML exported');
 }
 
-function exportPPTX() { showToast('PowerPoint export coming soon!'); }
-function exportPDF() { showToast('PDF export coming soon!'); }
-function exportImage(format) { showToast('Image export coming soon!'); }
-function exportZIP() { showToast('ZIP export coming soon!'); }
+function exportPPTX() {
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_16x9';
+  pptx.title = 'Presentation';
+  pptx.author = 'Visual Editor';
+  pptx.subject = 'Presentation';
+
+  project.items.forEach(item => {
+    const slide = pptx.addSlide();
+    const layout = getLayoutById(item.layout);
+    const bgColor = item.colors.bg.replace('#', '');
+    const textColor = item.colors.text.replace('#', '');
+    const primaryColor = item.colors.primary.replace('#', '');
+    const secondaryColor = item.colors.secondary.replace('#', '');
+
+    slide.background = { color: bgColor };
+
+    const shapes = [];
+
+    if (layout && layout.slots) {
+      Object.keys(layout.slots).forEach(slotId => {
+        const slot = layout.slots[slotId];
+        const value = item.content[slotId] || slot.placeholder || '';
+        const isTitle = slotId === 'title' || slotId === 'heading';
+        const isBody = slotId === 'body' || slotId === 'subtitle' || slotId === 'subheadline';
+
+        if (isTitle) {
+          slide.addText(value, {
+            x: 0.5, y: 0.5, w: 8.5, h: 1.5,
+            fontSize: isTitle && slotId === 'title' ? 44 : 32,
+            color: primaryColor,
+            bold: true,
+            fontFace: 'Arial'
+          });
+        } else if (isBody) {
+          slide.addText(value, {
+            x: 0.5, y: 2, w: 8.5, h: 4,
+            fontSize: 18,
+            color: textColor,
+            fontFace: 'Arial',
+            valign: 'top',
+            lineSpacingMultiple: 1.2
+          });
+        } else if (slot.type === 'textarea') {
+          slide.addText(value, {
+            x: 0.5, y: 2, w: 8.5, h: 4,
+            fontSize: 14,
+            color: textColor,
+            fontFace: 'Arial',
+            valign: 'top'
+          });
+        } else if (value) {
+          slide.addText(value, {
+            x: 0.5, y: isTitle ? 0.5 : 2, w: 8.5, h: 0.8,
+            fontSize: 16,
+            color: textColor,
+            fontFace: 'Arial'
+          });
+        }
+      });
+    } else {
+      slide.addText(item.layout, {
+        x: 1, y: 2, w: 7, h: 1,
+        fontSize: 24,
+        color: textColor,
+        align: 'center'
+      });
+    }
+  });
+
+  pptx.writeFile({ fileName: 'presentation.pptx' });
+  showToast('PPTX exported');
+}
+
+async function exportPDF() {
+  showToast('Generating PDF...');
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({
+    orientation: currentContentType === 'resume' ? 'portrait' : 'landscape',
+    unit: 'px',
+    format: currentContentType === 'resume' ? 'a4' : [960, 540]
+  });
+
+  for (let i = 0; i < project.items.length; i++) {
+    if (i > 0) pdf.addPage();
+
+    const item = project.items[i];
+    const layout = getLayoutById(item.layout);
+
+    const tempDiv = document.createElement('div');
+    tempDiv.style.cssText = `
+      position: fixed;
+      left: -9999px;
+      width: ${currentContentType === 'resume' ? '794px' : '960px'};
+      height: ${currentContentType === 'resume' ? '1123px' : '540px'};
+      background: ${item.colors.bg};
+      color: ${item.colors.text};
+      padding: 40px;
+      font-family: Arial, sans-serif;
+    `;
+
+    let html = '';
+    if (layout && layout.slots) {
+      Object.keys(layout.slots).forEach(slotId => {
+        const slot = layout.slots[slotId];
+        const value = item.content[slotId] || slot.placeholder || '';
+        const isTitle = slotId === 'title' || slotId === 'heading';
+        const isBody = slotId === 'body' || slotId === 'subtitle' || slotId === 'subheadline';
+
+        if (isTitle) {
+          const fontSize = slotId === 'title' ? 36 : 28;
+          html += `<h1 style="color: ${item.colors.primary}; margin-bottom: 16px; font-size: ${fontSize}px; font-weight: bold;">${value}</h1>`;
+        } else if (isBody) {
+          html += `<p style="font-size: 16px; line-height: 1.6; margin-bottom: 16px;">${value}</p>`;
+        } else if (slot.type === 'textarea') {
+          html += `<div style="margin-top: 12px; font-size: 14px;">${value}</div>`;
+        } else if (value) {
+          html += `<div style="margin-top: 8px; font-size: 14px;">${value}</div>`;
+        }
+      });
+    }
+
+    tempDiv.innerHTML = html;
+    document.body.appendChild(tempDiv);
+
+    try {
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const props = pdf.getImageProperties(imgData);
+
+      if (currentContentType === 'resume') {
+        pdf.addImage(imgData, 'PNG', 0, 0, 794, 1123);
+      } else {
+        pdf.addImage(imgData, 'PNG', 0, 0, 960, 540);
+      }
+    } catch (e) {
+      console.error('PDF render error:', e);
+    }
+
+    document.body.removeChild(tempDiv);
+  }
+
+  pdf.save('document.pdf');
+  showToast('PDF exported');
+}
+
+async function exportImage(format) {
+  if (project.items.length === 0) {
+    showToast('No items to export');
+    return;
+  }
+
+  showToast('Generating image...');
+
+  const item = project.items[project.currentIndex];
+  const layout = getLayoutById(item.layout);
+  const config = CONTENT_TYPES[currentContentType];
+
+  const tempDiv = document.createElement('div');
+  tempDiv.style.cssText = `
+    position: fixed;
+    left: -9999px;
+    width: ${config.width}px;
+    height: ${config.height === 'auto' ? '600px' : config.height + 'px'};
+    background: ${item.colors.bg};
+    color: ${item.colors.text};
+    padding: 40px;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+  `;
+
+  let html = '';
+  if (layout && layout.slots) {
+    Object.keys(layout.slots).forEach(slotId => {
+      const slot = layout.slots[slotId];
+      const value = item.content[slotId] || slot.placeholder || '';
+      const isTitle = slotId === 'title' || slotId === 'heading';
+      const isBody = slotId === 'body' || slotId === 'subtitle' || slotId === 'subheadline';
+
+      if (isTitle) {
+        const fontSize = slotId === 'title' ? 36 : 28;
+        html += `<h1 style="color: ${item.colors.primary}; margin-bottom: 16px; font-size: ${fontSize}px; font-weight: bold;">${value}</h1>`;
+      } else if (isBody) {
+        html += `<p style="font-size: 16px; line-height: 1.6; margin-bottom: 16px;">${value}</p>`;
+      } else if (slot.type === 'textarea') {
+        html += `<div style="margin-top: 12px; font-size: 14px;">${value}</div>`;
+      } else if (value) {
+        html += `<div style="margin-top: 8px; font-size: 14px;">${value}</div>`;
+      }
+    });
+  }
+
+  tempDiv.innerHTML = html;
+  document.body.appendChild(tempDiv);
+
+  try {
+    const canvas = await html2canvas(tempDiv, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: null
+    });
+
+    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+    const quality = format === 'jpg' ? 0.9 : 1.0;
+    const dataUrl = canvas.toDataURL(mimeType, quality);
+
+    const link = document.createElement('a');
+    link.download = `image.${format}`;
+    link.href = dataUrl;
+    link.click();
+
+    showToast('Image exported');
+  } catch (e) {
+    console.error('Image export error:', e);
+    showToast('Export failed');
+  }
+
+  document.body.removeChild(tempDiv);
+}
+
+function exportZIP() {
+  showToast('ZIP export coming soon!');
+}
 
 // Save/Load
 function saveProject() {
@@ -907,7 +1251,7 @@ function getDefaultThemes() {
 // Default layouts
 function getDefaultLayouts() {
   return [
-    // Presentation
+    // Presentation Layouts
     { id: 'title-slide', name: 'Title Slide', category: 'presentation', icon: '📝', 
       slots: { title: { type: 'text', placeholder: 'Your Title' }, subtitle: { type: 'text', placeholder: 'Subtitle' }}},
     { id: 'content-slide', name: 'Content Slide', category: 'presentation', icon: '📄',
@@ -917,47 +1261,77 @@ function getDefaultLayouts() {
     { id: 'quote-slide', name: 'Quote Slide', category: 'presentation', icon: '💬',
       slots: { quote: { type: 'textarea', placeholder: 'Quote text' }, author: { type: 'text', placeholder: 'Author name' }}},
     { id: 'agenda-slide', name: 'Agenda', category: 'presentation', icon: '📋',
-      slots: { heading: { type: 'text', placeholder: 'Agenda' }, item1: { type: 'text', placeholder: 'Point 1' }, item2: { type: 'text', placeholder: 'Point 2' }, item3: { type: 'text', placeholder: 'Point 3' }}},
+      slots: { heading: { type: 'text', placeholder: 'Agenda' }, item1: { type: 'text', placeholder: 'Point 1' }, item2: { type: 'text', placeholder: 'Point 2' }, item3: { type: 'text', placeholder: 'Point 3' }, item4: { type: 'text', placeholder: 'Point 4' }}},
     { id: 'stat-slide', name: 'Statistics', category: 'presentation', icon: '📊',
-      slots: { heading: { type: 'text', placeholder: 'Our Stats' }, stat1: { type: 'text', placeholder: '100%' }, label1: { type: 'text', placeholder: 'Label' }, stat2: { type: 'text', placeholder: '50+' }, label2: { type: 'text', placeholder: 'Label' }}},
+      slots: { heading: { type: 'text', placeholder: 'Our Stats' }, stat1: { type: 'text', placeholder: '100%' }, label1: { type: 'text', placeholder: 'Label' }, stat2: { type: 'text', placeholder: '50+' }, label2: { type: 'text', placeholder: 'Label' }, stat3: { type: 'text', placeholder: '25K' }, label3: { type: 'text', placeholder: 'Label' }}},
     { id: 'timeline-slide', name: 'Timeline', category: 'presentation', icon: '📅',
-      slots: { heading: { type: 'text', placeholder: 'Timeline' }, step1: { type: 'text', placeholder: '2020 - Step 1' }, step2: { type: 'text', placeholder: '2021 - Step 2' }, step3: { type: 'text', placeholder: '2022 - Step 3' }}},
+      slots: { heading: { type: 'text', placeholder: 'Timeline' }, step1: { type: 'text', placeholder: '2020 - Step 1' }, step2: { type: 'text', placeholder: '2021 - Step 2' }, step3: { type: 'text', placeholder: '2022 - Step 3' }, step4: { type: 'text', placeholder: '2023 - Step 4' }}},
     { id: 'thank-you-slide', name: 'Thank You', category: 'presentation', icon: '🙏',
       slots: { mainText: { type: 'text', placeholder: 'Thank You!' }, subtitle: { type: 'text', placeholder: 'Contact info' }}},
+    { id: 'problem-solution', name: 'Problem/Solution', category: 'presentation', icon: '🎯',
+      slots: { heading: { type: 'text', placeholder: 'The Challenge' }, problem: { type: 'textarea', placeholder: 'Describe the problem...' }, solution: { type: 'textarea', placeholder: 'Describe the solution...' }}},
+    { id: 'team-slide', name: 'Meet the Team', category: 'presentation', icon: '👥',
+      slots: { heading: { type: 'text', placeholder: 'Our Team' }, member1: { type: 'text', placeholder: 'Member 1' }, role1: { type: 'text', placeholder: 'Role' }, member2: { type: 'text', placeholder: 'Member 2' }, role2: { type: 'text', placeholder: 'Role' }}},
+    { id: 'comparison-slide', name: 'Before/After', category: 'presentation', icon: '⚖️',
+      slots: { heading: { type: 'text', placeholder: 'Comparison' }, before: { type: 'text', placeholder: 'Before' }, beforeDesc: { type: 'textarea', placeholder: 'Before description...' }, after: { type: 'text', placeholder: 'After' }, afterDesc: { type: 'textarea', placeholder: 'After description...' }}},
+    { id: 'contact-slide', name: 'Contact', category: 'presentation', icon: '📞',
+      slots: { heading: { type: 'text', placeholder: 'Get in Touch' }, email: { type: 'text', placeholder: 'email@example.com' }, phone: { type: 'text', placeholder: '+1 234 567 8900' }, website: { type: 'text', placeholder: 'www.example.com' }}},
     
-    // Website
+    // Website Layouts
     { id: 'hero-section', name: 'Hero Section', category: 'website', icon: '🖥️',
-      slots: { heading: { type: 'text', placeholder: 'Hero headline' }, subheadline: { type: 'textarea', placeholder: 'Subheadline text' }, ctaPrimary: { type: 'text', placeholder: 'Primary button' }}},
+      slots: { heading: { type: 'text', placeholder: 'Hero headline' }, subheadline: { type: 'textarea', placeholder: 'Subheadline text' }, ctaPrimary: { type: 'text', placeholder: 'Primary button' }, ctaSecondary: { type: 'text', placeholder: 'Secondary button' }}},
     { id: 'features-section', name: 'Features Section', category: 'website', icon: '✨',
-      slots: { heading: { type: 'text', placeholder: 'Our Features' }, feature1: { type: 'text', placeholder: 'Feature 1' }, feature2: { type: 'text', placeholder: 'Feature 2' }, feature3: { type: 'text', placeholder: 'Feature 3' }}},
+      slots: { heading: { type: 'text', placeholder: 'Our Features' }, feature1: { type: 'text', placeholder: 'Feature 1' }, feature2: { type: 'text', placeholder: 'Feature 2' }, feature3: { type: 'text', placeholder: 'Feature 3' }, feature4: { type: 'text', placeholder: 'Feature 4' }}},
     { id: 'about-section', name: 'About Section', category: 'website', icon: '👤',
       slots: { heading: { type: 'text', placeholder: 'About Us' }, body: { type: 'textarea', placeholder: 'About text...' }}},
     { id: 'cta-section', name: 'Call to Action', category: 'website', icon: '🎯',
       slots: { heading: { type: 'text', placeholder: 'Ready to start?' }, body: { type: 'textarea', placeholder: 'CTA message' }, ctaText: { type: 'text', placeholder: 'Button text' }}},
     { id: 'footer-section', name: 'Footer', category: 'website', icon: '📍',
-      slots: { brand: { type: 'text', placeholder: 'Brand Name' }, copyright: { type: 'text', placeholder: '© 2024 Brand' }}},
+      slots: { brand: { type: 'text', placeholder: 'Brand Name' }, copyright: { type: 'text', placeholder: '© 2024 Brand' }, social1: { type: 'text', placeholder: 'Social Link 1' }, social2: { type: 'text', placeholder: 'Social Link 2' }}},
+    { id: 'testimonial-section', name: 'Testimonials', category: 'website', icon: '💬',
+      slots: { heading: { type: 'text', placeholder: 'What Our Clients Say' }, quote: { type: 'textarea', placeholder: 'Testimonial text...' }, author: { type: 'text', placeholder: 'Client Name' }, company: { type: 'text', placeholder: 'Company' }}},
+    { id: 'pricing-section', name: 'Pricing', category: 'website', icon: '💰',
+      slots: { heading: { type: 'text', placeholder: 'Pricing Plans' }, plan1: { type: 'text', placeholder: 'Basic - $9' }, plan2: { type: 'text', placeholder: 'Pro - $19' }, plan3: { type: 'text', placeholder: 'Enterprise - $49' }}},
+    { id: 'team-section', name: 'Team Section', category: 'website', icon: '👥',
+      slots: { heading: { type: 'text', placeholder: 'Meet Our Team' }, member1: { type: 'text', placeholder: 'Name 1' }, role1: { type: 'text', placeholder: 'Role 1' }, member2: { type: 'text', placeholder: 'Name 2' }, role2: { type: 'text', placeholder: 'Role 2' }}},
     
-    // Resume
+    // Resume Layouts
     { id: 'resume-header', name: 'Resume Header', category: 'resume', icon: '👤',
-      slots: { name: { type: 'text', placeholder: 'Your Name' }, title: { type: 'text', placeholder: 'Job Title' }, email: { type: 'text', placeholder: 'email@example.com' }}},
+      slots: { name: { type: 'text', placeholder: 'Your Name' }, title: { type: 'text', placeholder: 'Job Title' }, email: { type: 'text', placeholder: 'email@example.com' }, phone: { type: 'text', placeholder: '+1 234 567 8900' }}},
+    { id: 'resume-summary', name: 'Professional Summary', category: 'resume', icon: '📝',
+      slots: { title: { type: 'text', placeholder: 'Summary' }, body: { type: 'textarea', placeholder: 'Write your professional summary...' }}},
     { id: 'resume-section', name: 'Resume Section', category: 'resume', icon: '📋',
       slots: { sectionTitle: { type: 'text', placeholder: 'Experience/Education' }, body: { type: 'textarea', placeholder: 'Section content...' }}},
+    { id: 'resume-job', name: 'Job Entry', category: 'resume', icon: '💼',
+      slots: { title: { type: 'text', placeholder: 'Job Title' }, company: { type: 'text', placeholder: 'Company Name' }, date: { type: 'text', placeholder: 'Jan 2020 - Present' }, description: { type: 'textarea', placeholder: 'Job responsibilities...' }}},
     { id: 'resume-skills', name: 'Skills Section', category: 'resume', icon: '⚡',
-      slots: { title: { type: 'text', placeholder: 'Skills' }, skills: { type: 'text', placeholder: 'Skill 1, Skill 2, Skill 3' }}},
+      slots: { title: { type: 'text', placeholder: 'Skills' }, skills: { type: 'text', placeholder: 'Skill 1, Skill 2, Skill 3, Skill 4' }}},
+    { id: 'resume-education', name: 'Education', category: 'resume', icon: '🎓',
+      slots: { degree: { type: 'text', placeholder: 'Degree' }, school: { type: 'text', placeholder: 'School Name' }, year: { type: 'text', placeholder: 'Graduation Year' }}},
+    { id: 'resume-projects', name: 'Projects', category: 'resume', icon: '🚀',
+      slots: { title: { type: 'text', placeholder: 'Project Name' }, description: { type: 'textarea', placeholder: 'Project description...' }, technologies: { type: 'text', placeholder: 'Technologies used' }}},
     
-    // Social Posts
+    // Social Post Layouts
     { id: 'instagram-square', name: 'Instagram Square', category: 'social', icon: '📷',
       slots: { headline: { type: 'text', placeholder: 'Headline' }, body: { type: 'textarea', placeholder: 'Post content' }}},
     { id: 'instagram-story', name: 'Instagram Story', category: 'social', icon: '📱',
-      slots: { headline: { type: 'text', placeholder: 'Story headline' }, body: { type: 'textarea', placeholder: 'Story content' }}},
+      slots: { headline: { type: 'text', placeholder: 'Story headline' }, body: { type: 'textarea', placeholder: 'Story content' }, cta: { type: 'text', placeholder: 'Swipe up / Link' }}},
     { id: 'linkedin-post', name: 'LinkedIn Post', category: 'social', icon: '💼',
-      slots: { hook: { type: 'text', placeholder: 'Hook/Attention' }, body: { type: 'textarea', placeholder: 'Post content' }}},
+      slots: { hook: { type: 'text', placeholder: 'Hook/Attention' }, body: { type: 'textarea', placeholder: 'Post content' }, cta: { type: 'text', placeholder: 'Call to action' }}},
     { id: 'twitter-post', name: 'Twitter/X Post', category: 'social', icon: '🐦',
-      slots: { content: { type: 'textarea', placeholder: 'Your tweet...' }}},
+      slots: { content: { type: 'textarea', placeholder: 'Your tweet...' }, hashtag: { type: 'text', placeholder: '#hashtag' }}},
     { id: 'facebook-post', name: 'Facebook Post', category: 'social', icon: '👥',
-      slots: { body: { type: 'textarea', placeholder: 'Post content' }}},
+      slots: { body: { type: 'textarea', placeholder: 'Post content' }, link: { type: 'text', placeholder: 'Link preview title' }}},
     { id: 'youtube-thumbnail', name: 'YouTube Thumbnail', category: 'social', icon: '▶️',
-      slots: { title: { type: 'text', placeholder: 'Video title' }, subtitle: { type: 'text', placeholder: 'Channel name' }}}
+      slots: { title: { type: 'text', placeholder: 'Video title' }, subtitle: { type: 'text', placeholder: 'Channel name' }, views: { type: 'text', placeholder: '1M views' }}},
+    { id: 'pinterest-pin', name: 'Pinterest Pin', category: 'social', icon: '📌',
+      slots: { title: { type: 'text', placeholder: 'Pin title' }, description: { type: 'textarea', placeholder: 'Pin description...' }}},
+    { id: 'tiktok-post', name: 'TikTok Post', category: 'social', icon: '🎵',
+      slots: { headline: { type: 'text', placeholder: 'Hook' }, body: { type: 'textarea', placeholder: 'Caption...' }, sound: { type: 'text', placeholder: 'Sound used' }}},
+    { id: 'quote-post', name: 'Quote Post', category: 'social', icon: '💭',
+      slots: { quote: { type: 'textarea', placeholder: 'Your quote...' }, author: { type: 'text', placeholder: 'Author name' }}},
+    { id: 'promo-post', name: 'Promotional Post', category: 'social', icon: '📢',
+      slots: { headline: { type: 'text', placeholder: 'Sale/Offer headline' }, discount: { type: 'text', placeholder: '50% OFF' }, code: { type: 'text', placeholder: 'Use code: SAVE50' }, expires: { type: 'text', placeholder: 'Limited time' }}}
   ];
 }
 

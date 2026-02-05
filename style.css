@@ -181,7 +181,21 @@ body {
 }
 
 .page-item:hover {
-  background: var(--bg-active);
+  background: var(--hover-bg);
+}
+
+.page-item.dragging {
+  opacity: 0.5;
+  border: 2px dashed var(--primary);
+}
+
+.drag-handle {
+  opacity: 0.5;
+  margin-left: auto;
+}
+
+.page-item:hover .drag-handle {
+  opacity: 1;
 }
 
 .page-item.active {
