@@ -11,7 +11,8 @@ const CONTENT_TYPES = {
     addButtonText: 'Add Slide',
     itemName: 'slide',
     folder: 'presentations',
-    exportFormats: ['html', 'pptx', 'pdf']
+    exportFormats: ['html', 'pptx', 'pdf'],
+    categories: ['headings', 'bullet-points', 'multi-column', 'quotes', 'agenda-timeline', 'statistics', 'diagrams-charts', 'visual-content', 'team-people', 'closing']
   },
   website: {
     name: 'Website',
@@ -24,7 +25,8 @@ const CONTENT_TYPES = {
     addButtonText: 'Add Section',
     itemName: 'section',
     folder: 'website',
-    exportFormats: ['html', 'zip']
+    exportFormats: ['html', 'zip'],
+    categories: ['hero', 'features', 'content', 'conversion', 'footer']
   },
   resume: {
     name: 'Resume',
@@ -37,7 +39,8 @@ const CONTENT_TYPES = {
     addButtonText: 'Add Section',
     itemName: 'page',
     folder: 'resume',
-    exportFormats: ['pdf', 'html']
+    exportFormats: ['pdf', 'html'],
+    categories: ['headers', 'summary', 'experience', 'education', 'skills', 'projects']
   },
   post: {
     name: 'Social Post',
@@ -50,7 +53,22 @@ const CONTENT_TYPES = {
     addButtonText: 'New Post',
     itemName: 'post',
     folder: 'posts',
-    exportFormats: ['png', 'jpg', 'html']
+    exportFormats: ['png', 'jpg', 'html'],
+    categories: ['instagram', 'linkedin', 'twitter', 'other']
+  },
+  analytics: {
+    name: 'Analytics',
+    icon: 'fa-chart-bar',
+    aspectRatio: '16/9',
+    width: 960,
+    height: 540,
+    sidebarTitle: 'Dashboards',
+    emptyMessage: 'Add your first dashboard',
+    addButtonText: 'Add Dashboard',
+    itemName: 'dashboard',
+    folder: 'analytics',
+    exportFormats: ['html', 'png', 'jpg'],
+    categories: ['dashboards', 'charts', 'reports', 'metrics']
   }
 };
 
@@ -150,11 +168,21 @@ async function loadConfig() {
     const response = await fetch('config.json');
     if (!response.ok) throw new Error('Config not found');
     const config = await response.json();
-    layouts = config.layouts || [];
+    
+    // Handle new segmented layout structure
+    if (config.layouts && typeof config.layouts === 'object' && !Array.isArray(config.layouts)) {
+      // Flatten nested layout structure
+      layouts = flattenLayouts(config.layouts);
+      window.layoutCategories = config.layouts; // Store for category browser
+    } else {
+      layouts = config.layouts || [];
+    }
+    
     themes = config.themes || [];
     
     console.log('Loaded layouts:', layouts.length);
     console.log('Loaded themes:', themes.length);
+    console.log('Layout categories:', window.layoutCategories ? Object.keys(window.layoutCategories) : 'flat');
   } catch (e) {
     console.log('Using default config:', e.message);
     layouts = getDefaultLayouts();
@@ -164,6 +192,29 @@ async function loadConfig() {
   if (themes.length > 0) {
     project.theme = themes[0];
   }
+}
+
+// Flatten nested layout structure
+function flattenLayouts(layoutCategories) {
+  const flat = [];
+  Object.keys(layoutCategories).forEach(category => {
+    const categoryData = layoutCategories[category];
+    if (typeof categoryData === 'object') {
+      Object.keys(categoryData).forEach(subcategory => {
+        const subLayouts = categoryData[subcategory];
+        if (Array.isArray(subLayouts)) {
+          subLayouts.forEach(layout => {
+            flat.push({
+              ...layout,
+              category: category,
+              subcategory: subcategory
+            });
+          });
+        }
+      });
+    }
+  });
+  return flat;
 }
 
 // Select content type
@@ -195,7 +246,8 @@ function updateUIForContentType() {
     'presentation': 'presentation',
     'website': 'website',
     'resume': 'resume',
-    'post': 'social'
+    'post': 'social',
+    'analytics': 'analytics'
   };
 
   document.getElementById('sidebarHeader').textContent = config.sidebarTitle;
@@ -208,9 +260,10 @@ function updateUIForContentType() {
   document.getElementById('website-controls').style.display = currentContentType === 'website' ? 'flex' : 'none';
   document.getElementById('resume-controls').style.display = currentContentType === 'resume' ? 'flex' : 'none';
   document.getElementById('post-controls').style.display = currentContentType === 'post' ? 'flex' : 'none';
+  document.getElementById('analytics-controls').style.display = currentContentType === 'analytics' ? 'flex' : 'none';
 
-  // Animation only for presentations
-  document.getElementById('animationGroup').style.display = currentContentType === 'presentation' ? 'block' : 'none';
+  // Animation for presentations and analytics
+  document.getElementById('animationGroup').style.display = (currentContentType === 'presentation' || currentContentType === 'analytics') ? 'block' : 'none';
 
   // Update export formats
   updateExportFormats();
@@ -362,10 +415,15 @@ function renderLayoutCategories() {
   const container = document.getElementById('layoutCategories');
   const cats = getLayoutCategories();
   
+  // Format category names for display
+  const formatCategoryName = (cat) => {
+    return cat.split('-').map(word => capitalize(word)).join(' ');
+  };
+  
   container.innerHTML = `
     <button class="layout-category-btn active" data-category="all" onclick="filterLayouts('all')">All</button>
     ${cats.map(cat => `
-      <button class="layout-category-btn" data-category="${cat}" onclick="filterLayouts('${cat}')">${capitalize(cat)}</button>
+      <button class="layout-category-btn" data-category="${cat}" onclick="filterLayouts('${cat}')">${formatCategoryName(cat)}</button>
     `).join('')}
   `;
 }
@@ -379,11 +437,44 @@ function filterLayouts(category) {
 
 function renderLayoutGrid(filterCategory = 'all') {
   const grid = document.getElementById('layoutGrid');
-  const filtered = getFilteredLayouts(filterCategory);
   
   console.log('Rendering layouts for type:', currentContentType);
   console.log('Filter category:', filterCategory);
   console.log('Total layouts:', layouts.length);
+
+  if (filterCategory === 'all') {
+    // Show all layouts organized by subcategory
+    const subcategories = getLayoutSubcategories();
+    
+    if (subcategories) {
+      let html = '';
+      Object.keys(subcategories).forEach(subcat => {
+        const subLayouts = subcategories[subcat];
+        if (subLayouts && subLayouts.length > 0) {
+          html += `
+            <div class="layout-subcategory" style="margin-bottom: 24px;">
+              <h4 style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+                ${subcat.split('-').map(word => capitalize(word)).join(' ')}
+              </h4>
+              <div class="layout-grid-section" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px;">
+                ${subLayouts.map(layout => `
+                  <div class="layout-option" onclick="addItemWithLayout('${layout.id}')" style="background: var(--bg-hover); border: 2px solid transparent; border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='transparent'">
+                    <div class="layout-icon" style="font-size: 28px; margin-bottom: 8px;">${layout.icon || '📄'}</div>
+                    <div class="layout-name" style="font-size: 12px; color: var(--text);">${layout.name}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+      });
+      grid.innerHTML = html;
+      return;
+    }
+  }
+  
+  // Filtered view
+  const filtered = getFilteredLayouts(filterCategory);
   console.log('Filtered layouts:', filtered.length);
 
   if (filtered.length === 0) {
@@ -391,12 +482,16 @@ function renderLayoutGrid(filterCategory = 'all') {
     return;
   }
 
-  grid.innerHTML = filtered.map(layout => `
-    <div class="layout-option" onclick="addItemWithLayout('${layout.id}')">
-      <div class="layout-icon">${layout.icon || '📄'}</div>
-      <div class="layout-name">${layout.name}</div>
+  grid.innerHTML = `
+    <div class="layout-grid-section" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px;">
+      ${filtered.map(layout => `
+        <div class="layout-option" onclick="addItemWithLayout('${layout.id}')" style="background: var(--bg-hover); border: 2px solid transparent; border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='transparent'">
+          <div class="layout-icon" style="font-size: 28px; margin-bottom: 8px;">${layout.icon || '📄'}</div>
+          <div class="layout-name" style="font-size: 12px; color: var(--text);">${layout.name}</div>
+        </div>
+      `).join('')}
     </div>
-  `).join('');
+  `;
 }
 
 // Rendering
@@ -498,58 +593,21 @@ function renderWebsitePreview() {
   itemWrapper.style.height = 'auto';
   
   itemEl.style.width = '100%';
-  itemEl.style.maxWidth = '1200px';
+  itemEl.style.maxWidth = '100%';
   itemEl.style.height = 'auto';
-  itemEl.style.margin = '0 auto';
+  itemEl.style.margin = '0';
   itemEl.style.background = 'transparent';
   
-  let html = '<div class="website-preview">';
+  let html = '<div class="website-container" style="max-width: 100%; margin: 0;">';
   
   project.items.forEach((item, index) => {
     const layout = getLayoutById(item.layout);
-    html += `<div class="website-section" id="section-${index}" onclick="changeItem(${index})" style="background:${item.colors.bg};color:${item.colors.text};min-height:400px;padding:60px 40px;margin-bottom:20px;border-radius:8px;cursor:pointer;position:relative;">`;
-    html += `<div class="section-number" style="position:absolute;top:10px;left:10px;background:${item.colors.primary};color:white;padding:4px 8px;border-radius:4px;font-size:12px;">Section ${index + 1}</div>`;
-    html += renderItemContent(layout, item);
-    html += '</div>';
+    // Use the website-specific rendering which creates proper sections
+    html += renderWebsiteLayout(layout, item, getLayoutClass(item.layout));
   });
   
   html += '</div>';
   itemEl.innerHTML = html;
-}
-
-function renderItemContent(layout, item) {
-  let html = `<div style="padding: 20px;">`;
-
-  if (!layout) {
-    html += `<h2>${item.layout}</h2><p>Layout not found</p></div>`;
-    return html;
-  }
-
-  // Render based on slot type
-  Object.keys(layout.slots || {}).forEach(slotId => {
-    const slot = layout.slots[slotId];
-    const value = item.content[slotId] || slot.placeholder || '';
-    const isHeading = slotId === 'heading' || slotId === 'title';
-    const isBody = slotId === 'body' || slotId === 'subtitle' || slotId === 'subheadline';
-    const isTextarea = slot.type === 'textarea';
-
-    if (isHeading) {
-      html += `<h1 style="color: ${item.colors.primary}; margin-bottom: 16px; font-size: ${slotId === 'title' ? '36' : '28'}px;" 
-               contenteditable="true" onblur="updateContent('${slotId}', this.innerText)">${value}</h1>`;
-    } else if (isBody) {
-      html += `<p style="font-size: 16px; line-height: 1.6; margin-bottom: 16px;" 
-               contenteditable="true" onblur="updateContent('${slotId}', this.innerText)">${value}</p>`;
-    } else if (isTextarea) {
-      html += `<div style="margin-top: 12px;" contenteditable="true" 
-               onblur="updateContent('${slotId}', this.innerText)">${value}</div>`;
-    } else {
-      html += `<div style="margin-top: 8px; font-size: 14px;" contenteditable="true" 
-               onblur="updateContent('${slotId}', this.innerText)">${value}</div>`;
-    }
-  });
-
-  html += `</div>`;
-  return html;
 }
 
 function renderSidebar() {
@@ -642,6 +700,12 @@ function renderItem() {
   emptyCanvas.style.display = 'none';
   itemWrapper.style.display = 'block';
 
+  // For website mode, render all sections as one continuous page
+  if (currentContentType === 'website') {
+    renderWebsitePreview();
+    return;
+  }
+
   const item = project.items[project.currentIndex];
   const itemEl = document.getElementById('currentItem');
   
@@ -658,37 +722,365 @@ function renderItem() {
 }
 
 function renderItemContent(layout, item) {
-  let html = `<div style="padding: 40px; height: 100%;">`;
-
   if (!layout) {
-    html += `<h2>${item.layout}</h2><p>Layout not found</p></div>`;
-    return html;
+    return `<div style="padding: 40px;"><h2>${item.layout}</h2><p>Layout not found</p></div>`;
   }
 
-  // Render based on slot type
+  const layoutId = layout.id;
+  const colors = item.colors;
+  
+  // Get layout-specific CSS class
+  const layoutClass = getLayoutClass(layoutId);
+  
+  // For website mode, render differently
+  if (currentContentType === 'website') {
+    return renderWebsiteLayout(layout, item, layoutClass);
+  }
+  
+  // For presentation and other modes
+  return renderPresentationLayout(layout, item, layoutClass);
+}
+
+function getLayoutClass(layoutId) {
+  // Map layout IDs to CSS classes
+  const classMap = {
+    // Title variations
+    'title-slide': 'layout-title-classic',
+    'title-centered': 'layout-title-centered',
+    'title-split': 'layout-title-split',
+    'title-gradient': 'layout-title-gradient',
+    'title-minimal': 'layout-title-minimal',
+    'title-bold': 'layout-title-bold',
+    'title-elegant': 'layout-title-elegant',
+    'title-modern': 'layout-title-modern',
+    
+    // Bullet variations
+    'content-slide': 'layout-bullets-standard',
+    'bullets-icon': 'layout-bullets-icon',
+    'bullets-numbered': 'layout-bullets-numbered',
+    'bullets-cards': 'layout-bullets-cards',
+    'bullets-split': 'layout-bullets-split',
+    'bullets-hierarchy': 'layout-bullets-hierarchy',
+    'bullets-checklist': 'layout-bullets-checklist',
+    'bullets-quote': 'layout-bullets-quote',
+    
+    // Column layouts
+    'two-column': 'layout-two-column',
+    'three-column': 'layout-three-column',
+    'comparison-table': 'layout-comparison-table',
+    'vs-slide': 'layout-vs-battle',
+    'pros-cons': 'layout-pros-cons',
+    'before-after': 'layout-before-after',
+    
+    // Quotes
+    'quote-slide': 'layout-quote-simple',
+    'quote-large': 'layout-quote-large',
+    'quote-boxed': 'layout-quote-boxed',
+    'quote-pullout': 'layout-quote-pullout',
+    'quote-testimonial': 'layout-quote-testimonial',
+    
+    // Statistics
+    'stat-slide': 'layout-stats-grid',
+    'stats-big': 'layout-stats-big',
+    'stats-compare': 'layout-stats-compare',
+    'stats-trio': 'layout-stats-trio',
+    'kpi-dashboard': 'layout-kpi-dashboard',
+    
+    // Diagrams
+    'mermaid-flowchart': 'layout-mermaid-flowchart',
+    'mermaid-sequence': 'layout-mermaid-sequence',
+    'mermaid-gantt': 'layout-mermaid-gantt',
+    'mermaid-pie': 'layout-mermaid-pie',
+    'chart-bar': 'layout-chart-bar',
+    'chart-line': 'layout-chart-line',
+    'swot-analysis': 'layout-swot-analysis',
+    'funnel-chart': 'layout-funnel-chart',
+    'pyramid-chart': 'layout-pyramid-chart',
+    
+    // Team
+    'team-slide': 'layout-team-grid',
+    'team-spotlight': 'layout-team-spotlight',
+    'org-chart': 'layout-org-chart',
+    'speaker-intro': 'layout-speaker-intro',
+    'testimonial-grid': 'layout-testimonial-grid',
+    
+    // Closing
+    'thank-you-slide': 'layout-thanks-standard',
+    'thank-you-minimal': 'layout-thanks-minimal',
+    'cta-final': 'layout-cta-final',
+    'q-a': 'layout-qa',
+    'next-steps': 'layout-next-steps',
+    'contact-info': 'layout-contact-info'
+  };
+  
+  return classMap[layoutId] || 'layout-default';
+}
+
+function renderPresentationLayout(layout, item, layoutClass) {
+  const slots = layout.slots || {};
+  const content = item.content || {};
+  const colors = item.colors;
+  
+  let html = `<div class="${layoutClass}" style="padding: 40px; height: 100%; background: ${colors.bg}; color: ${colors.text};">`;
+  
+  // Special rendering based on layout type
+  switch(layout.id) {
+    // Title variations
+    case 'title-slide':
+    case 'title-centered':
+      html += `
+        <h1 contenteditable="true" onblur="updateContent('title', this.innerText)">${content.title || 'Your Title'}</h1>
+        <div class="subtitle" contenteditable="true" onblur="updateContent('subtitle', this.innerText)">${content.subtitle || 'Subtitle'}</div>
+      `;
+      break;
+      
+    case 'title-split':
+      html += `
+        <h1 contenteditable="true" onblur="updateContent('title', this.innerText)">${content.title || 'Main Title'}</h1>
+        <div class="side-content" contenteditable="true" onblur="updateContent('sideText', this.innerText)">${content.sideText || 'Side content...'}</div>
+      `;
+      break;
+      
+    case 'title-gradient':
+      html += `
+        <h1 contenteditable="true" onblur="updateContent('title', this.innerText)" style="background: linear-gradient(135deg, ${colors.primary}, ${colors.secondary}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">${content.title || 'Bold Title'}</h1>
+        <div class="tagline" contenteditable="true" onblur="updateContent('tagline', this.innerText)">${content.tagline || 'TAGLINE'}</div>
+      `;
+      break;
+      
+    case 'title-bold':
+      html += `
+        <h1 contenteditable="true" onblur="updateContent('title', this.innerText)" style="font-size: 72px; font-weight: 900; text-transform: uppercase;">${content.title || 'BIG TITLE'}</h1>
+        <div class="subtitle" contenteditable="true" onblur="updateContent('subtitle', this.innerText)" style="font-size: 20px; letter-spacing: 4px; text-transform: uppercase;">${content.subtitle || 'SUBTITLE'}</div>
+      `;
+      break;
+      
+    // Bullet variations
+    case 'bullets-numbered':
+      html += `
+        <h2 contenteditable="true" onblur="updateContent('heading', this.innerText)" style="font-size: 32px; margin-bottom: 30px;">${content.heading || 'Steps'}</h2>
+        <div class="step-list">
+          <div class="step-item"><div class="step-number" style="background: linear-gradient(135deg, ${colors.primary}, ${colors.secondary});"></div><div contenteditable="true" onblur="updateContent('step1', this.innerText)">${content.step1 || 'Step 1'}</div></div>
+          <div class="step-item"><div class="step-number" style="background: linear-gradient(135deg, ${colors.primary}, ${colors.secondary});"></div><div contenteditable="true" onblur="updateContent('step2', this.innerText)">${content.step2 || 'Step 2'}</div></div>
+          <div class="step-item"><div class="step-number" style="background: linear-gradient(135deg, ${colors.primary}, ${colors.secondary});"></div><div contenteditable="true" onblur="updateContent('step3', this.innerText)">${content.step3 || 'Step 3'}</div></div>
+          <div class="step-item"><div class="step-number" style="background: linear-gradient(135deg, ${colors.primary}, ${colors.secondary});"></div><div contenteditable="true" onblur="updateContent('step4', this.innerText)">${content.step4 || 'Step 4'}</div></div>
+        </div>
+      `;
+      break;
+      
+    case 'bullets-cards':
+      html += `
+        <h2 contenteditable="true" onblur="updateContent('heading', this.innerText)" style="font-size: 32px; margin-bottom: 30px;">${content.heading || 'Features'}</h2>
+        <div class="card-grid">
+          <div class="feature-card" style="background: rgba(255,255,255,0.1); border: 2px solid ${colors.primary};">
+            <div class="card-icon">✨</div>
+            <div contenteditable="true" onblur="updateContent('card1', this.innerText)">${content.card1 || 'Card 1'}</div>
+          </div>
+          <div class="feature-card" style="background: rgba(255,255,255,0.1); border: 2px solid ${colors.primary};">
+            <div class="card-icon">🚀</div>
+            <div contenteditable="true" onblur="updateContent('card2', this.innerText)">${content.card2 || 'Card 2'}</div>
+          </div>
+          <div class="feature-card" style="background: rgba(255,255,255,0.1); border: 2px solid ${colors.primary};">
+            <div class="card-icon">💡</div>
+            <div contenteditable="true" onblur="updateContent('card3', this.innerText)">${content.card3 || 'Card 3'}</div>
+          </div>
+        </div>
+      `;
+      break;
+      
+    case 'two-column':
+      html += `
+        <h2 contenteditable="true" onblur="updateContent('heading', this.innerText)" style="font-size: 32px; margin-bottom: 30px;">${content.heading || 'Section heading'}</h2>
+        <div class="slide-two-col">
+          <div>
+            <h3 contenteditable="true" onblur="updateContent('leftTitle', this.innerText)" style="font-size: 24px; margin-bottom: 16px; color: ${colors.primary};">${content.leftTitle || 'Left title'}</h3>
+            <div contenteditable="true" onblur="updateContent('leftBody', this.innerText)" style="font-size: 16px; line-height: 1.6;">${content.leftBody || 'Left content'}</div>
+          </div>
+          <div>
+            <h3 contenteditable="true" onblur="updateContent('rightTitle', this.innerText)" style="font-size: 24px; margin-bottom: 16px; color: ${colors.primary};">${content.rightTitle || 'Right title'}</h3>
+            <div contenteditable="true" onblur="updateContent('rightBody', this.innerText)" style="font-size: 16px; line-height: 1.6;">${content.rightBody || 'Right content'}</div>
+          </div>
+        </div>
+      `;
+      break;
+      
+    case 'pros-cons':
+      html += `
+        <h2 contenteditable="true" onblur="updateContent('heading', this.innerText)" style="font-size: 32px; margin-bottom: 30px;">${content.heading || 'Analysis'}</h2>
+        <div class="pros-cons-grid">
+          <div class="pros" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05)); border: 2px solid #22c55e; border-radius: 16px; padding: 30px;">
+            <h3 style="font-size: 20px; margin-bottom: 15px; color: #22c55e;">👍 PROS</h3>
+            <div contenteditable="true" onblur="updateContent('pros', this.innerText)" style="white-space: pre-line;">${content.pros || '✓ Benefits...'}</div>
+          </div>
+          <div class="cons" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05)); border: 2px solid #ef4444; border-radius: 16px; padding: 30px;">
+            <h3 style="font-size: 20px; margin-bottom: 15px; color: #ef4444;">👎 CONS</h3>
+            <div contenteditable="true" onblur="updateContent('cons', this.innerText)" style="white-space: pre-line;">${content.cons || '✗ Drawbacks...'}</div>
+          </div>
+        </div>
+      `;
+      break;
+      
+    case 'quote-slide':
+      html += `
+        <div class="slide-quote" style="font-size: 36px; font-style: italic; text-align: center; max-width: 80%; margin: 0 auto; line-height: 1.4;">
+          <div contenteditable="true" onblur="updateContent('quote', this.innerText)">${content.quote || 'Quote text'}</div>
+        </div>
+        <div class="slide-author" style="text-align: center; margin-top: 20px; font-size: 18px;">
+          <div contenteditable="true" onblur="updateContent('author', this.innerText)">${content.author || '— Author name'}</div>
+        </div>
+      `;
+      break;
+      
+    case 'stat-slide':
+      html += `
+        <h2 contenteditable="true" onblur="updateContent('heading', this.innerText)" style="font-size: 32px; margin-bottom: 40px;">${content.heading || 'Our Stats'}</h2>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; text-align: center;">
+          <div>
+            <div contenteditable="true" onblur="updateContent('stat1', this.innerText)" style="font-size: 56px; font-weight: 800; color: ${colors.primary};">${content.stat1 || '100%'}</div>
+            <div contenteditable="true" onblur="updateContent('label1', this.innerText)" style="font-size: 16px; opacity: 0.8;">${content.label1 || 'Complete'}</div>
+          </div>
+          <div>
+            <div contenteditable="true" onblur="updateContent('stat2', this.innerText)" style="font-size: 56px; font-weight: 800; color: ${colors.primary};">${content.stat2 || '50+'}</div>
+            <div contenteditable="true" onblur="updateContent('label2', this.innerText)" style="font-size: 16px; opacity: 0.8;">${content.label2 || 'Projects'}</div>
+          </div>
+        </div>
+      `;
+      break;
+      
+    case 'stats-big':
+      html += `
+        <div class="layout-stats-big" style="text-align: center;">
+          <div contenteditable="true" onblur="updateContent('number', this.innerText)" style="font-size: 100px; font-weight: 900; background: linear-gradient(135deg, ${colors.primary}, ${colors.secondary}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">${content.number || '1M+'}</div>
+          <div contenteditable="true" onblur="updateContent('label', this.innerText)" style="font-size: 28px; font-weight: 600; margin: 10px 0;">${content.label || 'Total Users'}</div>
+          <div contenteditable="true" onblur="updateContent('context', this.innerText)" style="font-size: 16px; opacity: 0.7;">${content.context || 'Context'}</div>
+        </div>
+      `;
+      break;
+      
+    case 'thank-you-slide':
+      html += `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center;">
+          <h1 contenteditable="true" onblur="updateContent('mainText', this.innerText)" style="font-size: 64px; font-weight: 700; margin-bottom: 20px;">${content.mainText || 'Thank You!'}</h1>
+          <div contenteditable="true" onblur="updateContent('subtitle', this.innerText)" style="font-size: 20px; opacity: 0.8;">${content.subtitle || 'Contact info'}</div>
+        </div>
+      `;
+      break;
+      
+    // Default/generic rendering
+    default:
+      html += renderGenericSlots(layout, content, colors);
+  }
+  
+  html += '</div>';
+  return html;
+}
+
+function renderWebsiteLayout(layout, item, layoutClass) {
+  const slots = layout.slots || {};
+  const content = item.content || {};
+  const colors = item.colors;
+  
+  let html = '';
+  
+  // Website sections render differently - no wrapper padding
+  switch(layout.id) {
+    case 'hero-section':
+    case 'hero-gradient':
+      html += `
+        <section class="website-hero ${layoutClass}" style="background: ${colors.bg}; color: ${colors.text}; min-height: 80vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 100px 40px;">
+          <h1 contenteditable="true" onblur="updateContent('heading', this.innerText)" style="font-size: 56px; font-weight: 800; margin-bottom: 24px; max-width: 800px;">${content.heading || 'Hero Headline'}</h1>
+          <div contenteditable="true" onblur="updateContent('subheadline', this.innerText)" style="font-size: 22px; opacity: 0.9; margin-bottom: 40px; max-width: 600px;">${content.subheadline || 'Subheadline text that explains your value proposition'}</div>
+          <div style="display: flex; gap: 20px;">
+            <button style="padding: 16px 40px; background: ${colors.primary}; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer;" contenteditable="true" onblur="updateContent('ctaPrimary', this.innerText)">${content.ctaPrimary || 'Get Started'}</button>
+          </div>
+        </section>
+      `;
+      break;
+      
+    case 'features-section':
+      html += `
+        <section class="website-features ${layoutClass}" style="background: ${colors.bg}; color: ${colors.text}; padding: 100px 40px;">
+          <h2 contenteditable="true" onblur="updateContent('heading', this.innerText)" style="font-size: 42px; text-align: center; margin-bottom: 60px;">${content.heading || 'Our Features'}</h2>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; max-width: 1200px; margin: 0 auto;">
+            <div style="text-align: center; padding: 30px;">
+              <div style="font-size: 48px; margin-bottom: 16px;">✨</div>
+              <div contenteditable="true" onblur="updateContent('feature1', this.innerText)" style="font-size: 22px; font-weight: 700; margin-bottom: 8px;">${content.feature1 || 'Feature 1'}</div>
+            </div>
+            <div style="text-align: center; padding: 30px;">
+              <div style="font-size: 48px; margin-bottom: 16px;">🚀</div>
+              <div contenteditable="true" onblur="updateContent('feature2', this.innerText)" style="font-size: 22px; font-weight: 700; margin-bottom: 8px;">${content.feature2 || 'Feature 2'}</div>
+            </div>
+            <div style="text-align: center; padding: 30px;">
+              <div style="font-size: 48px; margin-bottom: 16px;">💡</div>
+              <div contenteditable="true" onblur="updateContent('feature3', this.innerText)" style="font-size: 22px; font-weight: 700; margin-bottom: 8px;">${content.feature3 || 'Feature 3'}</div>
+            </div>
+          </div>
+        </section>
+      `;
+      break;
+      
+    case 'about-section':
+      html += `
+        <section class="website-about ${layoutClass}" style="background: ${colors.bg}; color: ${colors.text}; padding: 100px 40px;">
+          <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+            <h2 contenteditable="true" onblur="updateContent('heading', this.innerText)" style="font-size: 42px; margin-bottom: 30px;">${content.heading || 'About Us'}</h2>
+            <div contenteditable="true" onblur="updateContent('body', this.innerText)" style="font-size: 18px; line-height: 1.8;">${content.body || 'About text...'}</div>
+          </div>
+        </section>
+      `;
+      break;
+      
+    case 'cta-section':
+      html += `
+        <section class="website-cta ${layoutClass}" style="background: ${colors.bg}; color: ${colors.text}; padding: 120px 40px; text-align: center;">
+          <h2 contenteditable="true" onblur="updateContent('heading', this.innerText)" style="font-size: 48px; font-weight: 700; margin-bottom: 20px;">${content.heading || 'Ready to start?'}</h2>
+          <div contenteditable="true" onblur="updateContent('body', this.innerText)" style="font-size: 20px; max-width: 600px; margin: 0 auto 40px; opacity: 0.9;">${content.body || 'CTA message'}</div>
+          <button style="padding: 18px 50px; background: ${colors.primary}; color: white; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer;" contenteditable="true" onblur="updateContent('ctaText', this.innerText)">${content.ctaText || 'Button text'}</button>
+        </section>
+      `;
+      break;
+      
+    case 'footer-section':
+      html += `
+        <footer class="website-footer ${layoutClass}" style="background: ${colors.bg}; color: ${colors.text}; padding: 60px 40px; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);">
+          <div contenteditable="true" onblur="updateContent('brand', this.innerText)" style="font-size: 24px; font-weight: 700; margin-bottom: 16px;">${content.brand || 'Brand Name'}</div>
+          <div contenteditable="true" onblur="updateContent('copyright', this.innerText)" style="font-size: 14px; opacity: 0.7;">${content.copyright || '© 2024 Brand'}</div>
+        </footer>
+      `;
+      break;
+      
+    default:
+      // Generic website section
+      html += `
+        <section class="website-section ${layoutClass}" style="background: ${colors.bg}; color: ${colors.text}; padding: 100px 40px;">
+          <div style="max-width: 1000px; margin: 0 auto;">
+            ${renderGenericSlots(layout, content, colors)}
+          </div>
+        </section>
+      `;
+  }
+  
+  return html;
+}
+
+function renderGenericSlots(layout, content, colors) {
+  let html = '';
   Object.keys(layout.slots || {}).forEach(slotId => {
     const slot = layout.slots[slotId];
-    const value = item.content[slotId] || slot.placeholder || '';
+    const value = content[slotId] || slot.placeholder || '';
     const isHeading = slotId === 'heading' || slotId === 'title';
     const isBody = slotId === 'body' || slotId === 'subtitle' || slotId === 'subheadline';
-    const isTextarea = slot.type === 'textarea';
-
+    
     if (isHeading) {
-      html += `<h1 style="color: ${item.colors.primary}; margin-bottom: 16px; font-size: ${slotId === 'title' ? '36' : '28'}px;" 
-               contenteditable="true" onblur="updateContent('${slotId}', this.innerText)">${value}</h1>`;
+      html += `<h1 style="color: ${colors.primary}; margin-bottom: 16px; font-size: ${slotId === 'title' ? '48' : '36'}px; font-weight: 700;" contenteditable="true" onblur="updateContent('${slotId}', this.innerText)">${value}</h1>`;
     } else if (isBody) {
-      html += `<p style="font-size: 16px; line-height: 1.6; margin-bottom: 16px;" 
-               contenteditable="true" onblur="updateContent('${slotId}', this.innerText)">${value}</p>`;
-    } else if (isTextarea) {
-      html += `<div style="margin-top: 12px;" contenteditable="true" 
-               onblur="updateContent('${slotId}', this.innerText)">${value}</div>`;
+      html += `<p style="font-size: 18px; line-height: 1.6; margin-bottom: 16px;" contenteditable="true" onblur="updateContent('${slotId}', this.innerText)">${value}</p>`;
+    } else if (slot.type === 'textarea') {
+      html += `<div style="margin-top: 12px; font-size: 16px; line-height: 1.5; white-space: pre-line;" contenteditable="true" onblur="updateContent('${slotId}', this.innerText)">${value}</div>`;
     } else {
-      html += `<div style="margin-top: 8px; font-size: 14px;" contenteditable="true" 
-               onblur="updateContent('${slotId}', this.innerText)">${value}</div>`;
+      html += `<div style="margin-top: 8px; font-size: 16px;" contenteditable="true" onblur="updateContent('${slotId}', this.innerText)">${value}</div>`;
     }
   });
-
-  html += `</div>`;
   return html;
 }
 
@@ -1195,13 +1587,20 @@ function getFilteredLayouts(category) {
     'presentation': 'presentation',
     'website': 'website',
     'resume': 'resume',
-    'post': 'social'
+    'post': 'social',
+    'analytics': 'analytics'
   };
   const targetCat = configMap[currentContentType] || currentContentType;
   
   if (category === 'all') {
     return layouts.filter(l => l.category === targetCat);
   }
+  
+  // Filter by subcategory if using new structure
+  if (window.layoutCategories && window.layoutCategories[targetCat]) {
+    return layouts.filter(l => l.category === targetCat && l.subcategory === category);
+  }
+  
   return layouts.filter(l => l.category === category && l.category === targetCat);
 }
 
@@ -1210,8 +1609,40 @@ function getLayoutById(id) {
 }
 
 function getLayoutCategories() {
+  const configMap = {
+    'presentation': 'presentation',
+    'website': 'website',
+    'resume': 'resume',
+    'post': 'social',
+    'analytics': 'analytics'
+  };
+  const targetCat = configMap[currentContentType] || currentContentType;
+  
+  // If using new segmented structure, return subcategories
+  if (window.layoutCategories && window.layoutCategories[targetCat]) {
+    return Object.keys(window.layoutCategories[targetCat]);
+  }
+  
+  // Fallback to unique categories
   const filtered = getFilteredLayouts('all');
   return [...new Set(filtered.map(l => l.category))];
+}
+
+function getLayoutSubcategories() {
+  const configMap = {
+    'presentation': 'presentation',
+    'website': 'website',
+    'resume': 'resume',
+    'post': 'social',
+    'analytics': 'analytics'
+  };
+  const targetCat = configMap[currentContentType] || currentContentType;
+  
+  if (window.layoutCategories && window.layoutCategories[targetCat]) {
+    return window.layoutCategories[targetCat];
+  }
+  
+  return null;
 }
 
 function generateId() {

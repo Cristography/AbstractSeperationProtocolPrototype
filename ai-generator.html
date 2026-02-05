@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Content Generator</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    .ai-interface {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    
+    .ai-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .ai-header h1 {
+      font-size: 36px;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .ai-header p {
+      color: var(--text-muted);
+      font-size: 16px;
+    }
+    
+    .ai-input-area {
+      background: var(--bg-panel);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .ai-type-selector {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .ai-type-btn {
+      padding: 10px 20px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-hover);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .ai-type-btn:hover {
+      border-color: var(--accent);
+    }
+    
+    .ai-type-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    
+    .ai-prompt-input {
+      width: 100%;
+      min-height: 120px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-dark);
+      color: var(--text);
+      font-size: 16px;
+      resize: vertical;
+      margin-bottom: 16px;
+    }
+    
+    .ai-prompt-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    
+    .ai-generate-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .ai-generate-btn:hover {
+      transform: translateY(-2px);
+    }
+    
+    .ai-generate-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .ai-output {
+      background: var(--bg-panel);
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 24px;
+      display: none;
+    }
+    
+    .ai-output.show {
+      display: block;
+    }
+    
+    .ai-output h3 {
+      margin-bottom: 16px;
+      color: var(--success);
+    }
+    
+    .ai-output pre {
+      background: var(--bg-dark);
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    
+    .ai-actions {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .ai-actions button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .ai-btn-primary {
+      background: var(--success);
+      color: white;
+    }
+    
+    .ai-btn-secondary {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+    
+    .ai-examples {
+      margin-top: 40px;
+    }
+    
+    .ai-examples h3 {
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+    
+    .ai-example-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .ai-example-card:hover {
+      border-color: var(--accent);
+      transform: translateX(4px);
+    }
+    
+    .ai-example-card p {
+      color: var(--text-muted);
+      font-size: 14px;
+      font-style: italic;
+    }
+    
+    .ai-loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+    
+    .ai-loading i {
+      font-size: 48px;
+      margin-bottom: 16px;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .generated-files {
+      margin-top: 40px;
+    }
+    
+    .generated-files h3 {
+      margin-bottom: 16px;
+    }
+    
+    .file-list {
+      background: var(--bg-panel);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    
+    .file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .file-item:last-child {
+      border-bottom: none;
+    }
+    
+    .file-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .file-info i {
+      color: var(--accent);
+    }
+    
+    .file-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .file-actions button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      background: var(--bg-hover);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .file-actions button:hover {
+      background: var(--accent);
+      color: white;
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+      text-decoration: none;
+      margin-bottom: 24px;
+    }
+    
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="ai-interface">
+    <a href="index.html" class="back-link">
+      <i class="fas fa-arrow-left"></i> Back to Editor
+    </a>
+    
+    <div class="ai-header">
+      <h1><i class="fas fa-robot"></i> AI Content Generator</h1>
+      <p>Describe what you want to create, and I'll generate it for you</p>
+    </div>
+    
+    <div class="ai-input-area">
+      <div class="ai-type-selector">
+        <button class="ai-type-btn active" data-type="presentation">
+          <i class="fas fa-play-circle"></i> Presentation
+        </button>
+        <button class="ai-type-btn" data-type="website">
+          <i class="fas fa-globe"></i> Website
+        </button>
+        <button class="ai-type-btn" data-type="resume">
+          <i class="fas fa-file-alt"></i> Resume
+        </button>
+        <button class="ai-type-btn" data-type="social">
+          <i class="fas fa-share-alt"></i> Social Post
+        </button>
+        <button class="ai-type-btn" data-type="analytics">
+          <i class="fas fa-chart-bar"></i> Analytics
+        </button>
+      </div>
+      
+      <textarea 
+        class="ai-prompt-input" 
+        id="aiPrompt"
+        placeholder="Describe what you want to create...
+
+Examples:
+• Create a presentation about renewable energy with intro, market analysis, and conclusion
+• Build a resume for a software engineer with skills in React and Node.js
+• Make a landing page for a coffee shop with hero section, features, and contact form
+• Generate social media posts for a product launch campaign"></textarea>
+      
+      <button class="ai-generate-btn" id="generateBtn" onclick="generateContent()">
+        <i class="fas fa-magic"></i> Generate Content
+      </button>
+    </div>
+    
+    <div class="ai-output" id="aiOutput">
+      <h3><i class="fas fa-check-circle"></i> Content Generated!</h3>
+      <pre id="outputContent"></pre>
+      <div class="ai-actions">
+        <button class="ai-btn-primary" onclick="downloadProject()">
+          <i class="fas fa-download"></i> Download Project
+        </button>
+        <button class="ai-btn-secondary" onclick="openInEditor()">
+          <i class="fas fa-edit"></i> Open in Editor
+        </button>
+      </div>
+    </div>
+    
+    <div class="ai-examples">
+      <h3><i class="fas fa-lightbulb"></i> Try These Examples</h3>
+      <div class="ai-example-card" onclick="useExample(0)">
+        <strong>Presentation:</strong> "Create a 5-slide presentation about artificial intelligence with introduction, current state, future trends, use cases, and conclusion"
+      </div>
+      <div class="ai-example-card" onclick="useExample(1)">
+        <strong>Website:</strong> "Build a landing page for a SaaS product with hero section, features, pricing, testimonials, and CTA"
+      </div>
+      <div class="ai-example-card" onclick="useExample(2)">
+        <strong>Resume:</strong> "Make a professional resume for a marketing manager with 5 years experience in digital marketing"
+      </div>
+      <div class="ai-example-card" onclick="useExample(3)">
+        <strong>Analytics:</strong> "Create a dashboard showing Q4 sales metrics with revenue, growth, and conversion rates"
+      </div>
+    </div>
+    
+    <div class="generated-files" id="generatedFiles" style="display: none;">
+      <h3><i class="fas fa-folder-open"></i> Generated Files</h3>
+      <div class="file-list" id="fileList">
+        <!-- Files will be listed here -->
+      </div>
+    </div>
+  </div>
+  
+  <script src="js/ai-generation-system.js"></script>
+  <script>
+    let currentType = 'presentation';
+    let generatedProject = null;
+    
+    // Type selector
+    document.querySelectorAll('.ai-type-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.ai-type-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentType = btn.dataset.type;
+      });
+    });
+    
+    // Examples
+    const examples = [
+      'Create a 5-slide presentation about artificial intelligence with introduction, current state, future trends, use cases, and conclusion',
+      'Build a landing page for a SaaS product with hero section, features, pricing, testimonials, and CTA',
+      'Make a professional resume for a marketing manager with 5 years experience in digital marketing',
+      'Create a dashboard showing Q4 sales metrics with revenue, growth, and conversion rates'
+    ];
+    
+    function useExample(index) {
+      document.getElementById('aiPrompt').value = examples[index];
+    }
+    
+    async function generateContent() {
+      const prompt = document.getElementById('aiPrompt').value.trim();
+      
+      if (!prompt) {
+        alert('Please enter a description of what you want to create');
+        return;
+      }
+      
+      const btn = document.getElementById('generateBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+      
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      try {
+        // Generate content
+        const result = await window.aiGenerationSystem.generateFromText(prompt, currentType);
+        
+        if (result.success) {
+          generatedProject = result.project;
+          
+          // Show output
+          document.getElementById('outputContent').textContent = result.summary;
+          document.getElementById('aiOutput').classList.add('show');
+          
+          // Scroll to output
+          document.getElementById('aiOutput').scrollIntoView({ behavior: 'smooth' });
+          
+          // Update file list
+          updateFileList();
+        }
+      } catch (error) {
+        console.error('Generation error:', error);
+        alert('Error generating content. Please try again.');
+      }
+      
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-magic"></i> Generate Content';
+    }
+    
+    function downloadProject() {
+      if (generatedProject) {
+        window.aiGenerationSystem.exportToFile(generatedProject);
+      }
+    }
+    
+    function openInEditor() {
+      if (generatedProject) {
+        // Save to localStorage for the editor to pick up
+        localStorage.setItem('aiGeneratedProject', JSON.stringify(generatedProject));
+        window.location.href = 'index.html?loadGenerated=true';
+      }
+    }
+    
+    function updateFileList() {
+      const files = window.aiGenerationSystem.generatedContent;
+      
+      if (files.length > 0) {
+        document.getElementById('generatedFiles').style.display = 'block';
+        
+        const fileList = document.getElementById('fileList');
+        fileList.innerHTML = files.map(file => `
+          <div class="file-item">
+            <div class="file-info">
+              <i class="fas fa-file-code"></i>
+              <span>${file.filename}</span>
+              <small style="color: var(--text-muted);">${new Date(file.timestamp).toLocaleString()}</small>
+            </div>
+            <div class="file-actions">
+              <button onclick="downloadFile('${file.filename}')">Download</button>
+              <button onclick="loadFile('${file.filename}')">Open</button>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+    
+    function downloadFile(filename) {
+      const file = window.aiGenerationSystem.generatedContent.find(f => f.filename === filename);
+      if (file) {
+        window.aiGenerationSystem.exportToFile(file.project);
+      }
+    }
+    
+    function loadFile(filename) {
+      const file = window.aiGenerationSystem.generatedContent.find(f => f.filename === filename);
+      if (file) {
+        generatedProject = file.project;
+        document.getElementById('outputContent').textContent = window.aiGenerationSystem.generateSummary(file.project);
+        document.getElementById('aiOutput').classList.add('show');
+        document.getElementById('aiOutput').scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  </script>
+</body>
+</html>

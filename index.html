@@ -19,7 +19,7 @@
       </div>
       <div class="modal-body">
         <p style="text-align: center; margin-bottom: 30px; color: #666;">Choose what type of content you want to create:</p>
-        <div class="type-selector">
+        <div class="type-selector" style="grid-template-columns: repeat(5, 1fr);">
           <div class="type-card" onclick="selectContentType('presentation')">
             <div class="type-icon"><i class="fas fa-play-circle"></i></div>
             <h3>Presentation</h3>
@@ -39,6 +39,11 @@
             <div class="type-icon"><i class="fas fa-share-alt"></i></div>
             <h3>Social Post</h3>
             <p>Social media images & carousels</p>
+          </div>
+          <div class="type-card" onclick="selectContentType('analytics')">
+            <div class="type-icon"><i class="fas fa-chart-bar"></i></div>
+            <h3>Analytics</h3>
+            <p>Dashboards, charts & data visualizations</p>
           </div>
         </div>
       </div>
@@ -70,11 +75,17 @@
       <div class="toolbar-group" id="post-controls" style="display: none;">
         <button class="btn" onclick="addPost()"><i class="fas fa-plus"></i> New Post</button>
       </div>
+      <div class="toolbar-group" id="analytics-controls" style="display: none;">
+        <button class="btn" onclick="addNewItem()"><i class="fas fa-plus"></i> Add Dashboard</button>
+        <button class="btn" onclick="duplicateItem()"><i class="fas fa-copy"></i></button>
+        <button class="btn" onclick="deleteItem()" style="color: #ef4444;"><i class="fas fa-trash"></i></button>
+      </div>
     </div>
     <div class="toolbar-right">
       <button class="btn" onclick="undo()" title="Undo (Ctrl+Z)"><i class="fas fa-undo"></i></button>
       <button class="btn" onclick="redo()" title="Redo (Ctrl+Y)"><i class="fas fa-redo"></i></button>
       <div class="toolbar-divider"></div>
+      <button class="btn" onclick="window.location.href='ai-generator.html'" title="AI Generator"><i class="fas fa-robot"></i> AI</button>
       <button class="btn" onclick="showThemeModal()"><i class="fas fa-palette"></i> Theme</button>
       <button class="btn" onclick="saveProject()"><i class="fas fa-save"></i> Save</button>
       <button class="btn" onclick="loadProject()"><i class="fas fa-folder-open"></i> Load</button>
@@ -230,7 +241,31 @@
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
-  <script src="config.js"></script>
+  <script src="js/ai-generation-system.js"></script>
   <script src="editor.js"></script>
+  <script>
+    // Check for AI generated project on load
+    window.addEventListener('load', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('loadGenerated') === 'true') {
+        const generatedProject = localStorage.getItem('aiGeneratedProject');
+        if (generatedProject) {
+          try {
+            const project = JSON.parse(generatedProject);
+            // Load the project
+            window.project = project;
+            window.currentContentType = project.type;
+            window.saveProjectToStorage();
+            // Clear the flag
+            localStorage.removeItem('aiGeneratedProject');
+            // Refresh to show loaded project
+            window.location.href = 'index.html';
+          } catch (e) {
+            console.error('Error loading generated project:', e);
+          }
+        }
+      }
+    });
+  </script>
 </body>
 </html>
